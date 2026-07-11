@@ -123,3 +123,58 @@ from app.cv.measurements import measure_case
 case = predict_case("UMD_221129_002", "data/models/unet.pt")
 report = measure_case(case)
 ```
+
+### Fast full-set data path
+
+A real run should not decode NIfTI volumes every step. Pre-extract resized slices
+once, then train reading small per-slice files with worker processes:
+
+```
+python -m app.cv.preprocess --size 256            # writes data/slices/256/
+python -m app.cv.train --use-preextracted --size 256 --workers 4 ...
+```
+
+The simpler alternative is to keep all volumes in RAM with a large cache
+(`--cache-size 240`, roughly 8 GB); pre-extraction is preferred because it also
+removes the per-slice resize cost and works cleanly with DataLoader workers.
+
+### Class weighting
+
+Cross-entropy is class-weighted so the rare small classes (cavity, nabothian)
+can learn. `--class-weights auto` (default) derives weights from training-set
+class frequency (median-frequency balancing, capped by `--class-weight-cap`).
+Use `--class-weights none` for uniform, or pass five comma-separated values.
+
+## Training on a CUDA GPU
+
+Full training on a machine with an 8 GB NVIDIA GPU:
+
+```
+# 1. Clone and enter the repo
+git clone <your-fork-url> myomap
+cd myomap/backend
+
+# 2. Install (use a CUDA-enabled torch build for your CUDA version;
+#    see https://pytorch.org/get-started/locally/)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 3. Point at the UMD dataset (downloaded separately, never committed)
+export UMD_DATA_DIR=/path/to/UMD
+
+# 4. One-time slice pre-extraction (writes data/slices/256/)
+python -m app.cv.preprocess --size 256
+
+# 5. Full training run
+python -m app.cv.train \
+    --use-preextracted --size 256 --base-channels 32 \
+    --batch-size 16 --workers 4 \
+    --epochs 50 --lr-schedule cosine \
+    --class-weights auto --augment \
+    --device cuda --out data/models/unet.pt
+```
+
+Best checkpoint by mean foreground val Dice is saved automatically as
+`data/models/unet_best.pt`. If the GPU runs out of memory, lower `--batch-size`
+to 8. Per-epoch train loss and per-class val Dice are logged as training runs.

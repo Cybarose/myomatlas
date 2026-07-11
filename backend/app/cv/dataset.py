@@ -12,6 +12,7 @@ cases differ in size (672 vs 560) and in-plane spacing.
 
 from __future__ import annotations
 
+import json
 from collections import OrderedDict
 from pathlib import Path
 
@@ -55,6 +56,28 @@ def resize_mask(mask2d: np.ndarray, out_shape: tuple[int, int]) -> np.ndarray:
         .round()
         .astype(np.int64)
     )
+
+
+def _to_tensor_pair(
+    img: np.ndarray, mask: np.ndarray, augment: bool, rng: np.random.RandomState
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Optional left-right flip, then pack a slice as (image [1,H,W], mask [H,W])."""
+    if augment and rng.rand() < 0.5:
+        img = np.ascontiguousarray(img[:, ::-1])
+        mask = np.ascontiguousarray(mask[:, ::-1])
+    return torch.from_numpy(img).unsqueeze(0), torch.from_numpy(mask)
+
+
+def count_class_voxels(
+    case_ids: list[str], num_classes: int, root: Path | None = None
+) -> np.ndarray:
+    """Total voxels per class across the given masks (for class weighting)."""
+    counts = np.zeros(num_classes, dtype=np.float64)
+    for case_id in case_ids:
+        seg = load_seg(case_id, root)
+        binc = np.bincount(seg.reshape(-1), minlength=num_classes)
+        counts += binc[:num_classes]
+    return counts
 
 
 class UMDSliceDataset(Dataset):
@@ -129,10 +152,80 @@ class UMDSliceDataset(Dataset):
         out_shape = (self.size, self.size)
         img = resize_image(volume[:, :, z], out_shape)
         mask = resize_mask(seg[:, :, z], out_shape)
+        return _to_tensor_pair(img, mask, self.augment, self._rng)
 
-        if self.augment and self._rng.rand() < 0.5:
-            # Left-right flip of a sagittal plane (anterior-posterior mirror).
-            img = np.ascontiguousarray(img[:, ::-1])
-            mask = np.ascontiguousarray(mask[:, ::-1])
 
-        return torch.from_numpy(img).unsqueeze(0), torch.from_numpy(mask)
+def extract_slices(
+    case_ids: list[str],
+    size: int,
+    out_dir: Path,
+    split_key: str,
+    root: Path | None = None,
+) -> int:
+    """Pre-extract resized slices to disk as one small .npz per slice.
+
+    Bakes the normalization and resize into compact files (float16 image, uint8
+    mask) plus a manifest, so training reads cheap per-slice files with worker
+    processes instead of re-decompressing NIfTI volumes on the fly.
+    """
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    manifest: list[dict] = []
+    for case_id in case_ids:
+        case = load_case(case_id, root)
+        volume = normalize_volume(case.image)
+        for z in range(volume.shape[2]):
+            img = resize_image(volume[:, :, z], (size, size)).astype(np.float16)
+            mask = resize_mask(case.seg[:, :, z], (size, size)).astype(np.uint8)
+            fname = f"{case_id}__{z:03d}.npz"
+            np.savez_compressed(out_dir / fname, image=img, mask=mask)
+            manifest.append(
+                {"file": fname, "case": case_id, "z": z, "has_fg": bool((mask > 0).any())}
+            )
+    (out_dir / f"{split_key}_manifest.json").write_text(json.dumps(manifest))
+    return len(manifest)
+
+
+class PreextractedSliceDataset(Dataset):
+    """Reads pre-extracted slices from disk; worker- and memory-friendly.
+
+    Same interface and background mixing as UMDSliceDataset, but each item is a
+    small np.load instead of an on-the-fly NIfTI decode and resize.
+    """
+
+    def __init__(
+        self,
+        slices_dir: Path,
+        split_key: str,
+        foreground_only: bool = False,
+        background_fraction: float = 0.3,
+        augment: bool = False,
+        seed: int = 0,
+    ) -> None:
+        self.dir = Path(slices_dir)
+        self.augment = augment
+        self._rng = np.random.RandomState(seed)
+        manifest = json.loads((self.dir / f"{split_key}_manifest.json").read_text())
+        foreground = [m for m in manifest if m["has_fg"]]
+        background = [m for m in manifest if not m["has_fg"]]
+
+        if foreground_only or not background or background_fraction <= 0:
+            self.items = foreground
+        else:
+            n_bg = min(len(background), int(round(background_fraction * len(foreground))))
+            picks = (
+                self._rng.choice(len(background), size=n_bg, replace=False)
+                if n_bg > 0
+                else []
+            )
+            self.items = foreground + [background[i] for i in picks]
+
+    def __len__(self) -> int:
+        return len(self.items)
+
+    def __getitem__(self, i: int) -> tuple[torch.Tensor, torch.Tensor]:
+        entry = self.items[i]
+        data = np.load(self.dir / entry["file"])
+        img = data["image"].astype(np.float32)
+        mask = data["mask"].astype(np.int64)
+        return _to_tensor_pair(img, mask, self.augment, self._rng)

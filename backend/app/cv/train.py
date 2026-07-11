@@ -22,11 +22,17 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from .config import default_models_dir
-from .dataset import DEFAULT_SIZE, NUM_CLASSES, UMDSliceDataset
+from .config import default_models_dir, default_slices_dir
+from .dataset import (
+    DEFAULT_SIZE,
+    NUM_CLASSES,
+    PreextractedSliceDataset,
+    UMDSliceDataset,
+    count_class_voxels,
+)
 from .device import host_peak_rss_bytes, mps_allocated_bytes, pick_device
 from .inference import predict_volume
-from .losses import DiceCELoss
+from .losses import DiceCELoss, median_frequency_weights
 from .metrics import dice_from_counts, overlap_counts
 from .splits import DEFAULT_SEED, DEFAULT_VAL_FRACTION, load_or_make_split
 from .umd_loader import load_case
@@ -52,6 +58,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--base-channels", type=int, default=32)
     p.add_argument("--background-fraction", type=float, default=0.3)
     p.add_argument("--foreground-only", action="store_true", help="Train on labeled slices only.")
+    p.add_argument(
+        "--class-weights",
+        default="auto",
+        help="auto (from train frequency) | none | comma-separated per-class weights.",
+    )
+    p.add_argument("--class-weight-cap", type=float, default=10.0)
+    p.add_argument("--use-preextracted", action="store_true", help="Read slices from data/slices.")
+    p.add_argument("--slices-dir", type=Path, default=None, help="Slice store dir.")
     p.add_argument("--cache-size", type=int, default=16)
     p.add_argument("--workers", type=int, default=0)
     p.add_argument("--augment", action="store_true")
@@ -71,6 +85,21 @@ def build_scheduler(
             optimizer, step_size=max(epochs // 3, 1), gamma=0.5
         )
     return None
+
+
+def resolve_class_weights(
+    spec: str, train_ids: list[str], num_classes: int, cap: float
+) -> np.ndarray | None:
+    """Turn the --class-weights spec into a weight vector (or None for uniform)."""
+    if spec == "none":
+        return None
+    if spec == "auto":
+        counts = count_class_voxels(train_ids, num_classes)
+        return median_frequency_weights(counts, cap=cap)
+    weights = np.array([float(x) for x in spec.split(",")], dtype=np.float32)
+    if weights.shape[0] != num_classes:
+        raise ValueError(f"--class-weights needs {num_classes} values, got {weights.shape[0]}")
+    return weights
 
 
 @torch.no_grad()
@@ -121,22 +150,38 @@ def main() -> None:
     n_eval = args.limit_val_cases if args.limit_val_cases else len(val_ids)
     print(f"train cases: {len(train_ids)} (of {split['n_train']}) | val cases: {n_eval} (of {len(val_ids)})")
 
-    train_ds = UMDSliceDataset(
-        train_ids,
-        size=args.size,
-        foreground_only=args.foreground_only,
-        background_fraction=args.background_fraction,
-        augment=args.augment,
-        cache_size=args.cache_size,
-        seed=args.seed,
-    )
+    if args.use_preextracted:
+        slices_dir = args.slices_dir or default_slices_dir(args.size)
+        train_ds: UMDSliceDataset | PreextractedSliceDataset = PreextractedSliceDataset(
+            slices_dir,
+            "train",
+            foreground_only=args.foreground_only,
+            background_fraction=args.background_fraction,
+            augment=args.augment,
+            seed=args.seed,
+        )
+        print(f"reading pre-extracted slices from {slices_dir}")
+    else:
+        train_ds = UMDSliceDataset(
+            train_ids,
+            size=args.size,
+            foreground_only=args.foreground_only,
+            background_fraction=args.background_fraction,
+            augment=args.augment,
+            cache_size=args.cache_size,
+            seed=args.seed,
+        )
     print(f"train slices: {len(train_ds)}")
     train_loader = DataLoader(
         train_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.workers
     )
 
+    weights = resolve_class_weights(args.class_weights, train_ids, NUM_CLASSES, args.class_weight_cap)
+    if weights is not None:
+        print("class weights: " + ", ".join(f"{w:.2f}" for w in weights))
+
     model = UNet(in_channels=1, num_classes=NUM_CLASSES, base_channels=args.base_channels).to(device)
-    loss_fn = DiceCELoss(NUM_CLASSES)
+    loss_fn = DiceCELoss(NUM_CLASSES, class_weights=weights).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     scheduler = build_scheduler(optimizer, args.lr_schedule, args.epochs)
 
@@ -147,6 +192,7 @@ def main() -> None:
         "size": args.size,
         "normalization": "per_volume_percentile_99.5",
         "orientation": "sagittal_slices_axis2",
+        "class_weights": None if weights is None else [float(w) for w in weights],
     }
     out_path = args.out or (default_models_dir() / "unet.pt")
     best_path = out_path.parent / f"{out_path.stem}_best{out_path.suffix}"

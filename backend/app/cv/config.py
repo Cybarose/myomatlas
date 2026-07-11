@@ -52,3 +52,8 @@ def default_models_dir() -> Path:
 def default_split_path() -> Path:
     """Return the path of the persisted train/val split (gitignored under data/)."""
     return REPO_ROOT / "data" / "splits.json"
+
+
+def default_slices_dir(size: int) -> Path:
+    """Return the pre-extracted slice store for a target size (gitignored)."""
+    return REPO_ROOT / "data" / "slices" / str(size)
