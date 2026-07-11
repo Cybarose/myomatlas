@@ -1,0 +1,22 @@
+# Secrets
+.env
+
+# Daten und Modellgewichte (UMD, trainierte Modelle)
+data/
+*.pth
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/

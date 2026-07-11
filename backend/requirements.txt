@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+torch
+numpy
+scikit-image
+nibabel
+anthropic
+python-dotenv
