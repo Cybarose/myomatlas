@@ -24,6 +24,7 @@ from .config import (
     LABEL_NABOTHIAN,
     LABEL_WALL,
     MIN_MYOMA_VOLUME_MM3,
+    MODALITY,
 )
 from .umd_loader import Case
 
@@ -184,6 +185,7 @@ def measure_case(case: Case) -> dict:
 
     return {
         "case_id": case.case_id,
+        "modality": MODALITY,
         "voxel_spacing_mm": [round(s, 4) for s in spacing],
         "voxel_volume_mm3": round(_voxel_volume_mm3(spacing), 4),
         "volume_shape": list(seg.shape),

@@ -179,6 +179,36 @@ python -m app.rules.validate   # schema-validate the file (exits non-zero if mal
 python tests/test_rules.py     # loud test: valid file passes, malformations raise
 ```
 
+## Phase 5: reasoning agent
+
+The agent ([backend/app/agent/](backend/app/agent/)) takes a case's CV measurements
+plus an optional clinical intake (age, menopausal status, bleeding severity,
+fertility desire, risk factors) and reasons strictly from
+[figo_palm_coein.json](backend/app/rules/figo_palm_coein.json). The model assigns a
+FIGO type per myoma with a justification that cites the measurements, respects the
+confidence and uncertainty policy (provisional and lower confidence on fine 50
+percent thresholds, pedunculation, or location), places the case in PALM-COEIN, and
+applies the malignancy-exclusion rule. It returns a clinician report and a
+plain-language patient explanation as structured JSON. FIGO assignment is not
+computed in Python; the model reasons from the rules file.
+
+The API key comes from `ANTHROPIC_API_KEY` (environment or repo `.env`), never
+hardcoded. Missing key or a failed call returns a clear message instead of crashing.
+
+```
+cd backend
+export ANTHROPIC_API_KEY=...            # or put it in ../.env
+python -m app.agent.run_example --case UMD_221129_003
+```
+
+Or over HTTP:
+
+```
+uvicorn app.main:app --reload
+curl -s localhost:8000/analyze -H 'content-type: application/json' \
+  -d '{"case_id": "UMD_221129_003", "intake": {"age": 44, "menopausal_status": "premenopausal", "bleeding_severity": "heavy", "fertility_desire": "desired"}}'
+```
+
 ## Training on a CUDA GPU
 
 Full training on a machine with an 8 GB NVIDIA GPU:

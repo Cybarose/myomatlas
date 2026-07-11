@@ -22,6 +22,10 @@ LABEL_CAVITY: int = 2
 LABEL_MYOMA: int = 3
 LABEL_NABOTHIAN: int = 4
 
+# Imaging modality of the UMD dataset, carried in the measurement JSON so it
+# travels with the data instead of being guessed downstream.
+MODALITY: str = "MRI T2WI sagittal"
+
 REGION_NAMES: dict[int, str] = {
     LABEL_WALL: "wall",
     LABEL_CAVITY: "cavity",
