@@ -69,7 +69,8 @@ class UMDSliceDataset(Dataset):
         self,
         case_ids: list[str],
         size: int = DEFAULT_SIZE,
-        foreground_only: bool = True,
+        foreground_only: bool = False,
+        background_fraction: float = 0.3,
         augment: bool = False,
         cache_size: int = 16,
         root: Path | None = None,
@@ -82,16 +83,30 @@ class UMDSliceDataset(Dataset):
         self._cache: "OrderedDict[str, tuple[np.ndarray, np.ndarray]]" = OrderedDict()
         self._cache_size = cache_size
         self._rng = np.random.RandomState(seed)
-        self.index = self._build_index(foreground_only)
+        self.index = self._build_index(foreground_only, background_fraction)
 
-    def _build_index(self, foreground_only: bool) -> list[tuple[str, int]]:
-        index: list[tuple[str, int]] = []
+    def _build_index(
+        self, foreground_only: bool, background_fraction: float
+    ) -> list[tuple[str, int]]:
+        # Split slices into those carrying a label and pure-background ones, then
+        # keep all foreground slices plus a sampled share of background so the
+        # model sees empty anatomy and does not overpredict.
+        foreground: list[tuple[str, int]] = []
+        background: list[tuple[str, int]] = []
         for case_id in self.case_ids:
             seg = load_seg(case_id, self.root)
             for z in range(seg.shape[2]):
-                if not foreground_only or bool((seg[:, :, z] > 0).any()):
-                    index.append((case_id, z))
-        return index
+                bucket = foreground if bool((seg[:, :, z] > 0).any()) else background
+                bucket.append((case_id, z))
+
+        if foreground_only or not background or background_fraction <= 0:
+            return foreground
+
+        n_bg = min(len(background), int(round(background_fraction * len(foreground))))
+        if n_bg > 0:
+            picks = self._rng.choice(len(background), size=n_bg, replace=False)
+            foreground = foreground + [background[i] for i in picks]
+        return foreground
 
     def _get_case(self, case_id: str) -> tuple[np.ndarray, np.ndarray]:
         if case_id in self._cache:

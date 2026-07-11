@@ -96,6 +96,12 @@ resampling crosses the thick slice direction. The train/val split is determinist
 under `data/` (gitignored). The inference output matches the Phase 1 mask
 structure, so `measure_case` runs on predictions unchanged.
 
+Each epoch logs mean train loss and per-class validation Dice (wall, cavity,
+myoma, nabothian) computed by full-volume inference on the val split, uses a
+cosine learning-rate schedule, mixes a share of background slices so the model
+does not overpredict, and keeps the best checkpoint by mean foreground val Dice
+(`<name>_best.pt`) alongside the last one.
+
 ```
 cd backend
 source .venv/bin/activate
