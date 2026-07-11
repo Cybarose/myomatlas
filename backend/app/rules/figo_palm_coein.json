@@ -1,0 +1,469 @@
+{
+  "schema_version": "1.0",
+  "title": "FIGO leiomyoma subclassification and PALM-COEIN reasoning rules",
+  "description": "Structured reasoning source for the agent. It encodes the FIGO 0-8 leiomyoma types plus the hybrid case, maps each to the measurements the CV pipeline produces, and carries the PALM-COEIN framework and a malignancy-exclusion rule. This file is data only; the agent reasons from it and no myoma type is assigned in Python.",
+  "general_citation": "FIGO classification of causes of abnormal uterine bleeding, Munro et al. 2011 (Int J Gynaecol Obstet), FIGO 2018 revision.",
+  "reasoning_notes": {
+    "primary_signals": "Contact and distance to the cavity and to the serosa are the higher-confidence geometric signals. Use them first to place a myoma in a broad group (submucosal, intramural, subserosal, hybrid, other).",
+    "proxy_signals": "intramural_pct, cavity_surface_pct and serosa_surface_pct are surface-adjacency proxies from the segmentation, not validated volumetric protrusion measures. Use them only to suggest, never to assert an exact percentage.",
+    "uncertainty_policy": "When a type decision hinges on the fine 50 percent boundary (types 1 vs 2, 5 vs 6), on pedunculation (types 0 and 7), or on anatomical location (type 8), report the type as provisional with lower confidence and state the ambiguity. Do not feign precision the measurements do not support."
+  },
+  "measurement_glossary": {
+    "contacts_cavity": {
+      "description": "Whether the myoma touches the uterine cavity (endometrium, mask label 2).",
+      "type": "boolean",
+      "proxy": false
+    },
+    "distance_to_cavity_mm": {
+      "description": "Closest distance from the myoma to the cavity in millimeters; 0.0 on contact.",
+      "type": "number_mm",
+      "proxy": false
+    },
+    "contacts_serosa": {
+      "description": "Whether the myoma reaches the outer uterine surface (serosa, the boundary between the organ and background).",
+      "type": "boolean",
+      "proxy": false
+    },
+    "distance_to_serosa_mm": {
+      "description": "Closest distance from the myoma to the serosa in millimeters; 0.0 on contact.",
+      "type": "number_mm",
+      "proxy": false
+    },
+    "intramural_pct": {
+      "description": "Estimated share of the myoma buried in the myometrium. Surface-adjacency proxy from the segmentation, NOT a validated volumetric protrusion measure.",
+      "type": "percent",
+      "proxy": true
+    },
+    "cavity_surface_pct": {
+      "description": "Share of the myoma surface facing the cavity. Proxy for protrusion into the cavity.",
+      "type": "percent",
+      "proxy": true
+    },
+    "serosa_surface_pct": {
+      "description": "Share of the myoma surface facing the exterior. Proxy for protrusion beyond the serosa.",
+      "type": "percent",
+      "proxy": true
+    },
+    "volume_mm3": {
+      "description": "Myoma volume in cubic millimeters.",
+      "type": "number_mm3",
+      "proxy": false
+    },
+    "max_diameter_mm": {
+      "description": "Largest bounding-box extent of the myoma in millimeters.",
+      "type": "number_mm",
+      "proxy": false
+    }
+  },
+  "figo_leiomyoma_types": [
+    {
+      "type": "0",
+      "name": "Submucosal, pedunculated intracavitary",
+      "category": "submucosal",
+      "geometric_definition": "Lies entirely within the uterine cavity, attached to the endometrium by a stalk, with no myometrial component.",
+      "distinguishing_threshold": "100 percent intracavitary (no intramural component); attached by a pedicle rather than a broad base.",
+      "measurement_mapping": {
+        "signals": ["contacts_cavity", "intramural_pct", "cavity_surface_pct", "contacts_serosa"],
+        "expected": {
+          "contacts_cavity": "true",
+          "contacts_serosa": "false",
+          "intramural_pct": "approximately 0",
+          "cavity_surface_pct": "very high (most of the surface faces the cavity)",
+          "distance_to_serosa_mm": "large"
+        },
+        "proxy_caveat": "intramural_pct is a surface-adjacency proxy. A true pedicle (pedunculation) cannot be confirmed from voxel masks, so 0 versus 1 is not resolvable geometrically."
+      },
+      "confidence": {
+        "level": "moderate",
+        "depends_on_fine_threshold": false,
+        "note": "Submucosal location is clear from high cavity-facing surface and near-zero intramural fraction, but pedunculated (0) versus sessile (1) needs hysteroscopic confirmation."
+      },
+      "symptom_relevance_aub": "Highest relevance for heavy menstrual bleeding; intracavitary myomas cause the most bleeding.",
+      "fertility_relevance": "High impact on fertility and implantation; removal often improves outcomes.",
+      "management_options": {
+        "medical_symptomatic": ["Tranexamic acid for heavy bleeding", "Hormonal therapy for bleeding control", "GnRH analogue or antagonist as a short-term bridge"],
+        "uterus_preserving": ["Hysteroscopic myomectomy (resection)"],
+        "fertility_preserving": ["Hysteroscopic myomectomy, preferred when fertility is desired"],
+        "definitive": ["Hysterectomy if childbearing is complete and symptoms are refractory"]
+      },
+      "citation": "FIGO Munro 2011/2018; ACOG Practice Bulletin 228 (2021); NICE NG88 (heavy menstrual bleeding)."
+    },
+    {
+      "type": "1",
+      "name": "Submucosal, less than 50 percent intramural",
+      "category": "submucosal",
+      "geometric_definition": "Submucosal myoma that protrudes more than 50 percent into the cavity, with less than half of its bulk inside the myometrium.",
+      "distinguishing_threshold": "More than 50 percent intracavitary (less than 50 percent intramural). This is the fine 50 percent cavity threshold.",
+      "measurement_mapping": {
+        "signals": ["contacts_cavity", "intramural_pct", "cavity_surface_pct", "contacts_serosa"],
+        "expected": {
+          "contacts_cavity": "true",
+          "contacts_serosa": "false",
+          "intramural_pct": "low, below about 50 percent",
+          "cavity_surface_pct": "high"
+        },
+        "proxy_caveat": "The 50 percent split is judged from proxy percentages, not a volumetric measurement. Near the boundary, 1 and 2 are not reliably separable."
+      },
+      "confidence": {
+        "level": "lower",
+        "depends_on_fine_threshold": true,
+        "note": "Type 1 versus 2 depends on the 50 percent cavity-protrusion line. Because intramural_pct is a proxy, flag uncertainty when the value is near 50 percent."
+      },
+      "symptom_relevance_aub": "Strong relevance for heavy menstrual bleeding.",
+      "fertility_relevance": "Relevant to fertility; cavity distortion can impair implantation.",
+      "management_options": {
+        "medical_symptomatic": ["Tranexamic acid", "Hormonal therapy for bleeding control", "GnRH analogue or antagonist as a bridge"],
+        "uterus_preserving": ["Hysteroscopic myomectomy"],
+        "fertility_preserving": ["Hysteroscopic myomectomy when fertility is desired"],
+        "definitive": ["Hysterectomy if childbearing is complete and symptoms are refractory"]
+      },
+      "citation": "FIGO Munro 2011/2018; ACOG Practice Bulletin 228 (2021)."
+    },
+    {
+      "type": "2",
+      "name": "Submucosal, 50 percent or more intramural",
+      "category": "submucosal",
+      "geometric_definition": "Submucosal myoma with at least half of its bulk in the myometrium, protruding less than 50 percent into the cavity but still contacting and distorting the endometrium.",
+      "distinguishing_threshold": "Less than 50 percent intracavitary (50 percent or more intramural), still touching the cavity. This is the fine 50 percent cavity threshold.",
+      "measurement_mapping": {
+        "signals": ["contacts_cavity", "intramural_pct", "cavity_surface_pct", "contacts_serosa"],
+        "expected": {
+          "contacts_cavity": "true",
+          "contacts_serosa": "false",
+          "intramural_pct": "around or above about 50 percent",
+          "cavity_surface_pct": "moderate"
+        },
+        "proxy_caveat": "Both the 50 percent split and whether the myoma protrudes into the cavity (type 2) versus merely abuts it (type 3) are proxy-limited. Flag near-boundary cases."
+      },
+      "confidence": {
+        "level": "lower",
+        "depends_on_fine_threshold": true,
+        "note": "Type 2 versus 1 hinges on the 50 percent line, and type 2 versus 3 hinges on protrusion versus contact. Both are uncertain with a surface-adjacency proxy."
+      },
+      "symptom_relevance_aub": "Relevant for heavy menstrual bleeding, though usually less than types 0 and 1.",
+      "fertility_relevance": "May affect fertility when the cavity is distorted.",
+      "management_options": {
+        "medical_symptomatic": ["Tranexamic acid", "Hormonal therapy for bleeding control", "GnRH analogue or antagonist as a bridge"],
+        "uterus_preserving": ["Hysteroscopic myomectomy, sometimes staged for deep type 2", "Laparoscopic or abdominal myomectomy as an alternative"],
+        "fertility_preserving": ["Myomectomy tailored to preserve the cavity and myometrium"],
+        "definitive": ["Hysterectomy if childbearing is complete and symptoms are refractory"]
+      },
+      "citation": "FIGO Munro 2011/2018; ACOG Practice Bulletin 228 (2021)."
+    },
+    {
+      "type": "3",
+      "name": "Intramural, contacts the endometrium",
+      "category": "intramural",
+      "geometric_definition": "Entirely intramural (100 percent within the myometrium) but abutting the endometrium, without protruding into the cavity.",
+      "distinguishing_threshold": "Touches the endometrium with no cavity protrusion; fully intramural.",
+      "measurement_mapping": {
+        "signals": ["contacts_cavity", "intramural_pct", "cavity_surface_pct", "contacts_serosa"],
+        "expected": {
+          "contacts_cavity": "true",
+          "contacts_serosa": "false",
+          "intramural_pct": "high, near 100 percent",
+          "cavity_surface_pct": "low (abuts the cavity, does not face it broadly)"
+        },
+        "proxy_caveat": "Type 3 versus 2 turns on protrusion into the cavity versus mere contact, which the proxy cannot measure precisely."
+      },
+      "confidence": {
+        "level": "moderate",
+        "depends_on_fine_threshold": false,
+        "note": "Cavity contact with a high intramural fraction and low cavity-facing surface suggests type 3, but the 2 versus 3 boundary is proxy-limited."
+      },
+      "symptom_relevance_aub": "Can contribute to bleeding by affecting the adjacent endometrium, generally less than submucosal types.",
+      "fertility_relevance": "Possible impact given direct contact with the endometrium; evidence is evolving, and type 3 myomas are increasingly considered relevant to implantation.",
+      "management_options": {
+        "medical_symptomatic": ["Tranexamic acid", "Hormonal therapy for bleeding control"],
+        "uterus_preserving": ["Myomectomy (laparoscopic or abdominal)", "Uterine artery embolization when fertility is not a priority"],
+        "fertility_preserving": ["Myomectomy when symptomatic and fertility is desired"],
+        "definitive": ["Hysterectomy if childbearing is complete and symptoms are refractory"]
+      },
+      "citation": "FIGO Munro 2011/2018; ACOG Practice Bulletin 228 (2021)."
+    },
+    {
+      "type": "4",
+      "name": "Intramural, entirely within the myometrium",
+      "category": "intramural",
+      "geometric_definition": "Entirely within the myometrium, contacting neither the endometrium nor the serosa.",
+      "distinguishing_threshold": "No contact with the cavity and no contact with the serosa; fully intramural.",
+      "measurement_mapping": {
+        "signals": ["contacts_cavity", "contacts_serosa", "intramural_pct", "distance_to_cavity_mm", "distance_to_serosa_mm"],
+        "expected": {
+          "contacts_cavity": "false",
+          "contacts_serosa": "false",
+          "intramural_pct": "near 100 percent",
+          "distance_to_cavity_mm": "greater than 0",
+          "distance_to_serosa_mm": "greater than 0"
+        },
+        "proxy_caveat": "Contact and distance are direct signals here, so this type is among the more reliable to assign."
+      },
+      "confidence": {
+        "level": "higher",
+        "depends_on_fine_threshold": false,
+        "note": "No cavity or serosa contact is a clear, direct geometric signal."
+      },
+      "symptom_relevance_aub": "Often the most symptom-poor for bleeding; may cause bulk symptoms when large.",
+      "fertility_relevance": "Limited fertility impact unless large or distorting the cavity.",
+      "management_options": {
+        "medical_symptomatic": ["Tranexamic acid", "Hormonal therapy for bleeding control", "Observation when asymptomatic"],
+        "uterus_preserving": ["Myomectomy for bulk or bleeding symptoms", "Uterine artery embolization when fertility is not a priority"],
+        "fertility_preserving": ["Myomectomy when clinically indicated and fertility is desired"],
+        "definitive": ["Hysterectomy if childbearing is complete and symptoms are refractory"]
+      },
+      "citation": "FIGO Munro 2011/2018; ACOG Practice Bulletin 228 (2021)."
+    },
+    {
+      "type": "5",
+      "name": "Subserosal, 50 percent or more intramural",
+      "category": "subserosal",
+      "geometric_definition": "Contacts the serosa with at least half of its bulk still within the myometrium.",
+      "distinguishing_threshold": "Reaches the serosa with 50 percent or more intramural. This is the fine 50 percent serosal-side threshold.",
+      "measurement_mapping": {
+        "signals": ["contacts_serosa", "intramural_pct", "serosa_surface_pct", "contacts_cavity"],
+        "expected": {
+          "contacts_serosa": "true",
+          "contacts_cavity": "false",
+          "intramural_pct": "around or above about 50 percent",
+          "serosa_surface_pct": "moderate"
+        },
+        "proxy_caveat": "The 50 percent split between type 5 and type 6 is judged from proxy percentages, not a volumetric measurement."
+      },
+      "confidence": {
+        "level": "lower",
+        "depends_on_fine_threshold": true,
+        "note": "Type 5 versus 6 depends on the 50 percent intramural line, which the proxy cannot resolve precisely near the boundary."
+      },
+      "symptom_relevance_aub": "Low relevance for bleeding; more likely to cause pressure or bulk symptoms.",
+      "fertility_relevance": "Generally low fertility impact.",
+      "management_options": {
+        "medical_symptomatic": ["Observation when asymptomatic", "Symptomatic management for pressure symptoms"],
+        "uterus_preserving": ["Myomectomy (laparoscopic or abdominal) for bulk symptoms", "Uterine artery embolization when fertility is not a priority"],
+        "fertility_preserving": ["Myomectomy when clinically indicated and fertility is desired"],
+        "definitive": ["Hysterectomy if childbearing is complete and symptoms are refractory"]
+      },
+      "citation": "FIGO Munro 2011/2018; ACOG Practice Bulletin 228 (2021)."
+    },
+    {
+      "type": "6",
+      "name": "Subserosal, less than 50 percent intramural",
+      "category": "subserosal",
+      "geometric_definition": "Projects outward beyond the serosa with more than half of its bulk exophytic and less than half intramural.",
+      "distinguishing_threshold": "Reaches the serosa with less than 50 percent intramural. This is the fine 50 percent serosal-side threshold.",
+      "measurement_mapping": {
+        "signals": ["contacts_serosa", "intramural_pct", "serosa_surface_pct", "contacts_cavity"],
+        "expected": {
+          "contacts_serosa": "true",
+          "contacts_cavity": "false",
+          "intramural_pct": "low, below about 50 percent",
+          "serosa_surface_pct": "high"
+        },
+        "proxy_caveat": "The 50 percent split between type 6 and type 5 is proxy-based; type 6 versus 7 (pedunculation) is not resolvable from masks."
+      },
+      "confidence": {
+        "level": "lower",
+        "depends_on_fine_threshold": true,
+        "note": "Type 6 versus 5 hinges on the 50 percent line. Flag uncertainty when the intramural proxy is near 50 percent."
+      },
+      "symptom_relevance_aub": "Low relevance for bleeding; typically bulk or pressure symptoms.",
+      "fertility_relevance": "Generally low fertility impact.",
+      "management_options": {
+        "medical_symptomatic": ["Observation when asymptomatic", "Symptomatic management for pressure symptoms"],
+        "uterus_preserving": ["Myomectomy (laparoscopic or abdominal) for bulk symptoms"],
+        "fertility_preserving": ["Myomectomy when clinically indicated and fertility is desired"],
+        "definitive": ["Hysterectomy if childbearing is complete and symptoms are refractory"]
+      },
+      "citation": "FIGO Munro 2011/2018; ACOG Practice Bulletin 228 (2021)."
+    },
+    {
+      "type": "7",
+      "name": "Subserosal, pedunculated",
+      "category": "subserosal",
+      "geometric_definition": "Attached to the outer uterine surface by a stalk, lying largely outside the serosa.",
+      "distinguishing_threshold": "Subserosal and pedunculated (attached by a pedicle), with a minimal intramural component.",
+      "measurement_mapping": {
+        "signals": ["contacts_serosa", "intramural_pct", "serosa_surface_pct", "contacts_cavity"],
+        "expected": {
+          "contacts_serosa": "true",
+          "contacts_cavity": "false",
+          "intramural_pct": "approximately 0",
+          "serosa_surface_pct": "very high"
+        },
+        "proxy_caveat": "A true pedicle cannot be confirmed from voxel masks, so 7 versus 6 is not resolvable geometrically."
+      },
+      "confidence": {
+        "level": "lower",
+        "depends_on_fine_threshold": false,
+        "note": "A near-zero intramural fraction with very high exterior-facing surface suggests type 7, but pedunculation needs imaging or surgical confirmation."
+      },
+      "symptom_relevance_aub": "Low relevance for bleeding; risk of torsion and bulk symptoms.",
+      "fertility_relevance": "Generally low fertility impact.",
+      "management_options": {
+        "medical_symptomatic": ["Observation when asymptomatic"],
+        "uterus_preserving": ["Laparoscopic myomectomy (stalk resection)"],
+        "fertility_preserving": ["Myomectomy preserving the uterus when fertility is desired"],
+        "definitive": ["Hysterectomy if childbearing is complete and symptoms are refractory"]
+      },
+      "citation": "FIGO Munro 2011/2018; ACOG Practice Bulletin 228 (2021)."
+    },
+    {
+      "type": "8",
+      "name": "Other (for example cervical or parasitic)",
+      "category": "other",
+      "geometric_definition": "Myomas not defined by their relationship to the myometrium, such as cervical, parasitic, or broad-ligament locations.",
+      "distinguishing_threshold": "Defined by anatomical location rather than the cavity or serosa relationship.",
+      "measurement_mapping": {
+        "signals": ["contacts_cavity", "contacts_serosa", "intramural_pct"],
+        "expected": {
+          "note": "Not determinable from the cavity and serosa relationship alone. Requires anatomical location (for example cervical), which the current measurements do not encode."
+        },
+        "proxy_caveat": "The present measurements describe the corpus wall, cavity, and serosa only. A type 8 call needs location context the pipeline does not yet provide."
+      },
+      "confidence": {
+        "level": "lower",
+        "depends_on_fine_threshold": false,
+        "note": "Do not assign type 8 from geometry alone. Flag that location information is needed."
+      },
+      "symptom_relevance_aub": "Variable; depends on location.",
+      "fertility_relevance": "Variable; cervical or broad-ligament sites may affect delivery or surgery planning.",
+      "management_options": {
+        "medical_symptomatic": ["Symptomatic management as indicated"],
+        "uterus_preserving": ["Individualized myomectomy depending on location"],
+        "fertility_preserving": ["Individualized, specialist-led planning"],
+        "definitive": ["Hysterectomy if childbearing is complete and symptoms are refractory"]
+      },
+      "citation": "FIGO Munro 2011/2018."
+    },
+    {
+      "type": "2-5",
+      "name": "Hybrid (transmural), impacts endometrium and serosa",
+      "category": "hybrid",
+      "geometric_definition": "A transmural leiomyoma that reaches both the endometrium and the serosa. Its type is written as two numbers separated by a hyphen, where the first digit denotes the relationship of the myoma to the endometrium (its submucous component) and the second digit denotes the relationship to the serosa (its subserosal component). In the example 2-5, the first digit 2 is the submucosal component reaching the endometrium and the second digit 5 is the subserosal component reaching the serosa.",
+      "distinguishing_threshold": "Contacts both the cavity and the serosa (transmural). Each digit follows the same thresholds as the single-surface types.",
+      "measurement_mapping": {
+        "signals": ["contacts_cavity", "contacts_serosa", "intramural_pct", "cavity_surface_pct", "serosa_surface_pct"],
+        "expected": {
+          "contacts_cavity": "true",
+          "contacts_serosa": "true",
+          "cavity_surface_pct": "greater than 0",
+          "serosa_surface_pct": "greater than 0",
+          "intramural_pct": "intermediate"
+        },
+        "proxy_caveat": "Both digits rely on the fine 50 percent thresholds and the surface proxies, so the exact hybrid designation is uncertain even when transmural contact is clear."
+      },
+      "confidence": {
+        "level": "lower",
+        "depends_on_fine_threshold": true,
+        "note": "Transmural contact (both cavity and serosa) is a clear signal, but the two-digit designation depends on two fine thresholds and is provisional."
+      },
+      "symptom_relevance_aub": "Can cause bleeding via the endometrial component and bulk symptoms via the serosal component.",
+      "fertility_relevance": "Endometrial involvement can affect fertility; management is more complex.",
+      "management_options": {
+        "medical_symptomatic": ["Tranexamic acid", "Hormonal therapy for bleeding control", "GnRH analogue or antagonist as a bridge"],
+        "uterus_preserving": ["Combined or staged myomectomy addressing both components"],
+        "fertility_preserving": ["Myomectomy planned to preserve the cavity and myometrium, specialist-led"],
+        "definitive": ["Hysterectomy if childbearing is complete and symptoms are refractory"]
+      },
+      "citation": "FIGO Munro 2011/2018; ACOG Practice Bulletin 228 (2021)."
+    }
+  ],
+  "palm_coein": {
+    "structural": [
+      {
+        "code": "P",
+        "name": "Polyp",
+        "group": "structural",
+        "image_visible": true,
+        "detection": "imaging",
+        "note": "Endometrial or endocervical polyp. Seen on ultrasound (especially saline infusion sonography), MRI, or hysteroscopy.",
+        "citation": "FIGO PALM-COEIN, Munro 2011."
+      },
+      {
+        "code": "A",
+        "name": "Adenomyosis",
+        "group": "structural",
+        "image_visible": true,
+        "detection": "imaging",
+        "note": "Endometrial tissue within the myometrium. Diagnosed by MRI or transvaginal ultrasound criteria.",
+        "citation": "FIGO PALM-COEIN, Munro 2011."
+      },
+      {
+        "code": "L",
+        "name": "Leiomyoma",
+        "group": "structural",
+        "image_visible": true,
+        "detection": "imaging",
+        "note": "Uterine fibroid, the focus of this tool. Subclassified by the FIGO 0-8 system. Visible on MRI and ultrasound.",
+        "citation": "FIGO PALM-COEIN, Munro 2011."
+      },
+      {
+        "code": "M",
+        "name": "Malignancy and hyperplasia",
+        "group": "structural",
+        "image_visible": true,
+        "detection": "imaging_suggestive_histology_confirms",
+        "note": "Endometrial hyperplasia or malignancy, and uterine sarcoma. Imaging can raise suspicion but diagnosis requires histology (endometrial sampling).",
+        "citation": "FIGO PALM-COEIN, Munro 2011."
+      }
+    ],
+    "nonstructural": [
+      {
+        "code": "C",
+        "name": "Coagulopathy",
+        "group": "nonstructural",
+        "image_visible": false,
+        "detection": "history_or_lab",
+        "note": "Systemic disorders of hemostasis (for example von Willebrand disease). Identified from history and coagulation labs, not imaging.",
+        "citation": "FIGO PALM-COEIN, Munro 2011."
+      },
+      {
+        "code": "O",
+        "name": "Ovulatory dysfunction",
+        "group": "nonstructural",
+        "image_visible": false,
+        "detection": "history_or_lab",
+        "note": "Irregular or absent ovulation (for example PCOS, thyroid or prolactin disorders). From history and endocrine evaluation.",
+        "citation": "FIGO PALM-COEIN, Munro 2011."
+      },
+      {
+        "code": "E",
+        "name": "Endometrial",
+        "group": "nonstructural",
+        "image_visible": false,
+        "detection": "history_diagnosis_of_exclusion",
+        "note": "Primary disorder of endometrial hemostasis, a diagnosis of exclusion in women with regular cycles and no structural cause.",
+        "citation": "FIGO PALM-COEIN, Munro 2011."
+      },
+      {
+        "code": "I",
+        "name": "Iatrogenic",
+        "group": "nonstructural",
+        "image_visible": false,
+        "detection": "history",
+        "note": "Related to medications or devices (anticoagulants, hormonal therapy, intrauterine devices). From medication and device history.",
+        "citation": "FIGO PALM-COEIN, Munro 2011."
+      },
+      {
+        "code": "N",
+        "name": "Not otherwise classified",
+        "group": "nonstructural",
+        "image_visible": false,
+        "detection": "history_or_specialized_imaging",
+        "note": "Rare entities not fitting other categories (for example arteriovenous malformation, cesarean scar niche). Some require specialized imaging.",
+        "citation": "FIGO PALM-COEIN, Munro 2011."
+      }
+    ]
+  },
+  "malignancy_exclusion_rule": {
+    "flag_when": [
+      "Postmenopausal bleeding",
+      "Age 45 or older with abnormal uterine bleeding, or younger with risk factors (unopposed estrogen, obesity, PCOS, tamoxifen use, Lynch syndrome)",
+      "Rapid growth of a presumed fibroid, especially peri- or postmenopausal",
+      "Suspicious imaging features (ill-defined margins, unusual signal, rapid enlargement)",
+      "Persistent abnormal bleeding despite appropriate treatment"
+    ],
+    "action": "Flag for exclusion of endometrial hyperplasia or malignancy and of uterine sarcoma. Recommend endometrial sampling and specialist referral. This tool does not diagnose or exclude malignancy; the decision requires a clinician.",
+    "note": "Uterine sarcoma is rare and cannot be reliably distinguished from a benign fibroid by imaging. Human-in-the-loop is mandatory.",
+    "citation": "FIGO PALM-COEIN, Munro 2011; ACOG guidance on abnormal uterine bleeding and endometrial assessment."
+  }
+}

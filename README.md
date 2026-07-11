@@ -162,6 +162,23 @@ python -m app.cv.reconstruct_case --case UMD_221129_003
 
 The GLB is written under `data/meshes/` (gitignored).
 
+## Phase 4: FIGO/PALM-COEIN rules
+
+[backend/app/rules/figo_palm_coein.json](backend/app/rules/figo_palm_coein.json) is
+the reasoning core: FIGO leiomyoma types 0-8 plus the hybrid case, each with its
+geometric definition, distinguishing threshold, mapping to the CV measurements,
+symptom and fertility relevance, and management options, plus the PALM-COEIN
+framework and a malignancy-exclusion rule. Every entry carries a citation. Fine
+50 percent threshold decisions and the surface-adjacency `intramural_pct` proxy
+are marked lower confidence so the agent can flag uncertainty rather than feign
+precision. The file is data only; no myoma type is assigned in Python.
+
+```
+cd backend
+python -m app.rules.validate   # schema-validate the file (exits non-zero if malformed)
+python tests/test_rules.py     # loud test: valid file passes, malformations raise
+```
+
 ## Training on a CUDA GPU
 
 Full training on a machine with an 8 GB NVIDIA GPU:
