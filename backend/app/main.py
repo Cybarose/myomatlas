@@ -1,15 +1,15 @@
-"""FastAPI-Einstieg fuer das AUB-Tool.
+"""FastAPI entry point for MyoMap.
 
-Haelt in Phase 0 nur die /health-Route. Weitere Endpunkte (CV-Messwerte,
-3D-Mesh, Agent-Befund) kommen in spaeteren Phasen dazu.
+Phase 0 keeps only the /health route. Further endpoints (CV measurements,
+3D mesh, agent report) are added in later phases.
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="AUB-Tool API", version="0.1.0")
+app = FastAPI(title="MyoMap API", version="0.1.0")
 
-# Frontend laeuft im Dev unter einem anderen Port, daher CORS offen halten.
+# The frontend runs on a different dev port, so keep CORS open.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
