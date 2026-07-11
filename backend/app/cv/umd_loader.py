@@ -96,6 +96,13 @@ def _nii_paths(case_id: str, root: Path | None = None) -> tuple[Path, Path]:
     return image_path, seg_path
 
 
+def load_seg(case_id: str, root: Path | None = None) -> np.ndarray:
+    """Load only the integer mask for a case (cheap, for building slice indices)."""
+    _, seg_path = _nii_paths(case_id, root)
+    seg_nii = _load_nii(seg_path)
+    return np.rint(np.asanyarray(seg_nii.dataobj)).astype(np.int16)
+
+
 def load_case(case_id: str, root: Path | None = None) -> Case:
     """Load one case's T2WI volume and mask with header-derived spacing."""
     image_path, seg_path = _nii_paths(case_id, root)

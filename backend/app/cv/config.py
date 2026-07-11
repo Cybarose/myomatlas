@@ -42,3 +42,13 @@ def umd_dir() -> Path:
 def default_output_dir() -> Path:
     """Return the directory for derived artifacts (gitignored under data/)."""
     return REPO_ROOT / "data" / "phase1"
+
+
+def default_models_dir() -> Path:
+    """Return the directory for model checkpoints (gitignored under data/)."""
+    return REPO_ROOT / "data" / "models"
+
+
+def default_split_path() -> Path:
+    """Return the path of the persisted train/val split (gitignored under data/)."""
+    return REPO_ROOT / "data" / "splits.json"

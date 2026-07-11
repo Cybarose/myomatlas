@@ -4,6 +4,7 @@
 # Daten und Modellgewichte (UMD, trainierte Modelle)
 data/
 *.pth
+*.pt
 
 # Python
 __pycache__/

@@ -86,3 +86,34 @@ UMD_DATA_DIR=/path/to/UMD python -m app.cv.run_case --case UMD_221129_003
 ```
 
 Outputs are written under `data/phase1/` (gitignored).
+
+## Phase 2: segmentation model
+
+A 2D U-Net predicts the four regions from the T2 volume. Training operates on
+native sagittal slices (the acquisition plane, full in-plane resolution), so no
+resampling crosses the thick slice direction. The train/val split is deterministic
+(seed 42, 80/20) and persisted to `data/splits.json`. Weights and the split live
+under `data/` (gitignored). The inference output matches the Phase 1 mask
+structure, so `measure_case` runs on predictions unchanged.
+
+```
+cd backend
+source .venv/bin/activate
+
+# Smoke test: a few iterations on a handful of cases (CPU), end to end.
+python -m app.cv.train --limit-cases 4 --max-iters 3 --size 128 \
+    --base-channels 8 --batch-size 2 --device cpu --out data/models/unet_smoke.pt
+
+# Real run (uses CUDA or Apple MPS automatically when available).
+python -m app.cv.train --epochs 50 --size 256 --base-channels 32
+```
+
+Inference returns a `Case` carrying the predicted mask:
+
+```python
+from app.cv.inference import predict_case
+from app.cv.measurements import measure_case
+
+case = predict_case("UMD_221129_002", "data/models/unet.pt")
+report = measure_case(case)
+```
