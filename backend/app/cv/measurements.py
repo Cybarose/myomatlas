@@ -153,20 +153,32 @@ def _region_volumes_mm3(
     }
 
 
+def myoma_components_by_volume(
+    seg: np.ndarray, spacing: tuple[float, float, float]
+) -> list[np.ndarray]:
+    """Boolean masks of individual myomas, largest first.
+
+    The ordering defines myoma ids 1..n shared by the measurements and the 3D
+    meshes, so myoma_1 is the same object in both.
+    """
+    labeled, count = label_myomas(seg, spacing)
+    components = [labeled == mid for mid in range(1, count + 1)]
+    components.sort(key=lambda mask: int(mask.sum()), reverse=True)
+    return components
+
+
 def measure_case(case: Case) -> dict:
     """Compute the structured measurement JSON for one case."""
     spacing = case.spacing_mm
     seg = case.seg
 
-    labeled, count = label_myomas(seg, spacing)
+    # Largest first, so ids match myoma_components_by_volume and the 3D meshes.
+    components = myoma_components_by_volume(seg, spacing)
+    count = len(components)
     myomas = [
-        _measure_myoma(labeled == mid, seg, spacing, mid)
-        for mid in range(1, count + 1)
+        _measure_myoma(component, seg, spacing, i)
+        for i, component in enumerate(components, start=1)
     ]
-    # Report the largest myomas first; they usually drive the clinical picture.
-    myomas.sort(key=lambda m: m["volume_mm3"], reverse=True)
-    for new_id, myoma in enumerate(myomas, start=1):
-        myoma["id"] = new_id
 
     present = sorted(int(v) for v in np.unique(seg))
 

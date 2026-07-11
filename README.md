@@ -145,6 +145,23 @@ can learn. `--class-weights auto` (default) derives weights from training-set
 class frequency (median-frequency balancing, capped by `--class-weight-cap`).
 Use `--class-weights none` for uniform, or pass five comma-separated values.
 
+## Phase 3: 3D reconstruction
+
+Marching cubes turns a case mask into a GLB scene, applying the anisotropic voxel
+spacing so proportions are anatomically true. Wall (semi-transparent), cavity,
+and each individual myoma are separate named meshes (`wall`, `cavity`,
+`myoma_1`..`myoma_n`, largest first, matching the measurement ids) so the frontend
+can color, label, and toggle them. The scene is centered at the origin. It runs on
+any label volume, so ground-truth masks and model predictions both work.
+
+```
+cd backend
+source .venv/bin/activate
+python -m app.cv.reconstruct_case --case UMD_221129_003
+```
+
+The GLB is written under `data/meshes/` (gitignored).
+
 ## Training on a CUDA GPU
 
 Full training on a machine with an 8 GB NVIDIA GPU:

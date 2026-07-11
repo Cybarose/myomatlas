@@ -4,5 +4,6 @@ torch
 numpy
 scikit-image
 nibabel
+trimesh
 anthropic
 python-dotenv

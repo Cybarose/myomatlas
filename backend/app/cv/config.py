@@ -57,3 +57,8 @@ def default_split_path() -> Path:
 def default_slices_dir(size: int) -> Path:
     """Return the pre-extracted slice store for a target size (gitignored)."""
     return REPO_ROOT / "data" / "slices" / str(size)
+
+
+def default_meshes_dir() -> Path:
+    """Return the directory for exported 3D meshes (gitignored under data/)."""
+    return REPO_ROOT / "data" / "meshes"
