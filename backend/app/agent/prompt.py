@@ -34,7 +34,10 @@ SYSTEM_INSTRUCTIONS = (
     "'Subserosal, less than 50 percent intramural; type 7 pedunculated cannot be "
     "excluded from masks'). Keep provisional and confidence as they would be.\n"
     "3. Use the assigned type's management_options from the rules, keeping uterus- and "
-    "fertility-preserving options where relevant to the intake.\n"
+    "fertility-preserving options where relevant to the intake. Also report figo_group "
+    "as the type's category in the rules (a hybrid is Transmural), and bleeding_relevance "
+    "as exactly one of the words high, medium or low, judged from that type's "
+    "symptom_relevance_aub rather than copied from it.\n"
     "4. Place the case in PALM-COEIN using the rules. Distinguish image-visible causes "
     "from history or lab based ones. These masks show only wall, cavity, myoma, and "
     "nabothian cyst, so state what cannot be assessed from imaging alone.\n"
@@ -77,6 +80,22 @@ OUTPUT_TOOL = {
                                     "description": "FIGO type 0-8, a hybrid like 2-5, or 'uncertain'.",
                                 },
                                 "figo_type_name": {"type": "string"},
+                                "figo_group": {
+                                    "type": "string",
+                                    "enum": [
+                                        "Submucosal",
+                                        "Intramural",
+                                        "Subserosal",
+                                        "Transmural",
+                                        "Other",
+                                    ],
+                                    "description": "Group of the assigned type, from the rules file category. A hybrid is Transmural.",
+                                },
+                                "bleeding_relevance": {
+                                    "type": "string",
+                                    "enum": ["high", "medium", "low"],
+                                    "description": "Exactly one of the words high, medium or low. Judge it from the assigned type's symptom_relevance_aub. Do not copy that sentence.",
+                                },
                                 "confidence": {
                                     "type": "string",
                                     "enum": ["higher", "moderate", "lower"],
@@ -100,6 +119,8 @@ OUTPUT_TOOL = {
                                 "id",
                                 "figo_type",
                                 "figo_type_name",
+                                "figo_group",
+                                "bleeding_relevance",
                                 "confidence",
                                 "provisional",
                                 "justification",

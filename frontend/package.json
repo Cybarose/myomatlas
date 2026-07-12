@@ -9,6 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/fraunces": "^5.2.9",
+    "@fontsource-variable/space-grotesk": "^5.2.10",
+    "@fontsource/dm-mono": "^5.2.7",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "react": "^19.2.7",

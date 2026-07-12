@@ -58,6 +58,9 @@ def _region_surface(
     verts, faces, _normals, _values = marching_cubes(volume, level=0.5, spacing=spacing)
     # Undo the one-voxel pad offset so all regions share one coordinate frame.
     verts = verts - np.asarray(spacing, dtype=np.float64)
+    # Marching cubes winds faces so the normals point into the object. Reverse them so
+    # normals face outward, which every glTF consumer assumes for lighting and culling.
+    faces = faces[:, ::-1]
     return verts, faces
 
 

@@ -21,3 +21,6 @@ frontend/dist/
 .DS_Store
 .vscode/
 .idea/
+
+# Dataset-derived example assets (not committed)
+frontend/public/example/
