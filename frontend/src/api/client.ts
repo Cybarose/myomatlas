@@ -1,3 +1,4 @@
+import type { ApiIntake } from "./intake";
 import type { AnalyzeResponse } from "./types";
 
 // One place for the backend location. Override with VITE_API_URL.
@@ -35,14 +36,18 @@ export async function fetchCases(): Promise<string[]> {
 }
 
 // Runs the real pipeline: segmentation, measurements, then the agent. Slow on a cold
-// case, so callers should show a loading state.
-export async function analyzeCase(caseId: string): Promise<AnalyzeResponse> {
+// case, so callers should show a loading state. The intake, when given, is the clinical
+// context the agent reasons with.
+export async function analyzeCase(
+  caseId: string,
+  intake?: ApiIntake | null,
+): Promise<AnalyzeResponse> {
   let response: Response;
   try {
     response = await fetch(`${API_URL}/analyze`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ case_id: caseId }),
+      body: JSON.stringify({ case_id: caseId, intake: intake ?? undefined }),
     });
   } catch {
     throw new Error(UNREACHABLE);

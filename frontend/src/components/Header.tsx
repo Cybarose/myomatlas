@@ -4,10 +4,19 @@ interface Props {
   caseId: string;
   cases: string[];
   busy: boolean;
+  hasContext: boolean;
   onSelectCase: (caseId: string) => void;
+  onOpenIntake: () => void;
 }
 
-export default function Header({ caseId, cases, busy, onSelectCase }: Props) {
+export default function Header({
+  caseId,
+  cases,
+  busy,
+  hasContext,
+  onSelectCase,
+  onOpenIntake,
+}: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -29,6 +38,21 @@ export default function Header({ caseId, cases, busy, onSelectCase }: Props) {
           </span>
           <span className="figure text-[12.5px] text-fg2">{caseId}</span>
         </div>
+
+        {/* Accent outline and dot once clinical context is in play. */}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onOpenIntake}
+          className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+            hasContext
+              ? "border-accent text-accent"
+              : "border-line text-fg2 hover:border-fg3 hover:text-fg"
+          }`}
+        >
+          {hasContext && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
+          Patient details
+        </button>
 
         <div className="relative">
           <button

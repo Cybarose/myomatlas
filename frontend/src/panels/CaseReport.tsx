@@ -1,10 +1,12 @@
+import { intakeSummary } from "../api/intake";
 import { RelevanceChip } from "../components/Tags";
-import type { CaseReport, MyomaDetail } from "../types";
+import type { CaseReport, ClinicalIntake, MyomaDetail } from "../types";
 
 interface Props {
   report: CaseReport;
   myomas: MyomaDetail[];
   colors: Record<string, string>;
+  intake: ClinicalIntake;
   onSelect: (id: string) => void;
 }
 
@@ -16,9 +18,33 @@ function Heading({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function CaseReportPanel({ report, myomas, colors, onSelect }: Props) {
+export default function CaseReportPanel({
+  report,
+  myomas,
+  colors,
+  intake,
+  onSelect,
+}: Props) {
+  const context = intakeSummary(intake);
+
   return (
     <div>
+      {context.length > 0 && (
+        <section className="mb-6">
+          <Heading>Patient context</Heading>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {context.map((item) => (
+              <span
+                key={item}
+                className="rounded border border-accent/40 px-1.5 py-[3px] text-[10.5px] leading-none font-medium text-fg2"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section>
         <Heading>Summary</Heading>
         <p className="mt-2.5 text-[13px] leading-[1.7] text-fg2">{report.summary}</p>

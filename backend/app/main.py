@@ -73,7 +73,8 @@ def analyze(request: AnalyzeRequest) -> JSONResponse:
                 },
             )
 
-    intake = request.intake.model_dump() if request.intake else {}
+    # Only the fields the clinician actually filled in reach the agent.
+    intake = request.intake.model_dump(exclude_none=True) if request.intake else {}
     result = analyze_case(measurements, intake)
     # The frontend renders the numbers next to the reasoning, so ship both together.
     result["measurements"] = measurements

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { adaptAnalysis, type CaseAnalysis } from "./api/adapt";
 import { analyzeCase, fetchCases, meshUrl } from "./api/client";
+import { EMPTY_INTAKE, isIntakeProvided, toApiIntake } from "./api/intake";
 import AgentIndicator, { type AgentStage } from "./components/AgentIndicator";
 import Header from "./components/Header";
+import IntakeForm from "./components/IntakeForm";
 import CaseReportPanel from "./panels/CaseReport";
 import Drawer from "./panels/Drawer";
 import PatientExplanationPanel from "./panels/PatientExplanation";
-import type { ModelMeta, MyomaDetail, Projected } from "./types";
+import type { ClinicalIntake, ModelMeta, MyomaDetail, Projected } from "./types";
 import Scene from "./viewer/Scene";
 import { myomaColor } from "./viewer/palette";
 import Overlay from "./workspace/Overlay";
@@ -38,19 +40,22 @@ export default function App() {
   const [meta, setMeta] = useState<ModelMeta | null>(null);
   const [projected, setProjected] = useState<Record<string, Projected>>({});
 
-  const loadCase = useCallback(async (id: string) => {
-    setCaseId(id);
+  // Kept in state, so it survives panel switches and can be edited and re-run.
+  const [intake, setIntake] = useState<ClinicalIntake>(EMPTY_INTAKE);
+  const [intakeOpen, setIntakeOpen] = useState(false);
+
+  // Re-runs the agent for the current case. The mesh is untouched, so the 3D and the
+  // card layout stay put while the analysis is refreshed with new context.
+  const runAnalysis = useCallback(async (id: string, context: ClinicalIntake) => {
     setStatus("loading");
     setStage("segmentation");
     setError(null);
     setAnalysis(null);
     setSelected(null);
     setPanel(null);
-    setMeta(null);
-    setProjected({});
 
     try {
-      const response = await analyzeCase(id);
+      const response = await analyzeCase(id, toApiIntake(context));
       setAnalysis(adaptAnalysis(response));
       setStatus("ready");
     } catch (exc) {
@@ -61,12 +66,33 @@ export default function App() {
     }
   }, []);
 
+  const loadCase = useCallback(
+    async (id: string, context: ClinicalIntake) => {
+      setCaseId(id);
+      setMeta(null);
+      setProjected({});
+      await runAnalysis(id, context);
+    },
+    [runAnalysis],
+  );
+
   useEffect(() => {
-    void loadCase(DEFAULT_CASE);
+    void loadCase(DEFAULT_CASE, EMPTY_INTAKE);
     fetchCases()
       .then(setCases)
       .catch(() => setCases([]));
-  }, [loadCase]);
+    // Runs once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const submitIntake = useCallback(
+    (next: ClinicalIntake) => {
+      setIntake(next);
+      setIntakeOpen(false);
+      void runAnalysis(caseId, next);
+    },
+    [caseId, runAnalysis],
+  );
 
   // Walk the pipeline stages while the request is in flight.
   useEffect(() => {
@@ -119,7 +145,9 @@ export default function App() {
         caseId={caseId}
         cases={cases}
         busy={status === "loading"}
-        onSelectCase={(id) => void loadCase(id)}
+        hasContext={isIntakeProvided(intake)}
+        onSelectCase={(id) => void loadCase(id, intake)}
+        onOpenIntake={() => setIntakeOpen(true)}
       />
 
       <main className="grain relative min-h-0 flex-1 overflow-hidden bg-bg">
@@ -143,6 +171,14 @@ export default function App() {
           />
         )}
 
+        {intakeOpen && (
+          <IntakeForm
+            intake={intake}
+            onSubmit={submitIntake}
+            onClose={() => setIntakeOpen(false)}
+          />
+        )}
+
         {status === "error" && (
           <div className="absolute inset-0 z-20 flex items-center justify-center p-8">
             <div className="card-surface max-w-md rounded-xl border border-accent/80 px-6 py-5 text-center">
@@ -152,7 +188,7 @@ export default function App() {
               <p className="mt-2 text-[13px] leading-relaxed text-fg2">{error}</p>
               <button
                 type="button"
-                onClick={() => void loadCase(caseId)}
+                onClick={() => void runAnalysis(caseId, intake)}
                 className="mt-4 rounded-lg border border-accent bg-accent px-3.5 py-2 text-[12px] font-medium text-bg transition-opacity hover:opacity-90"
               >
                 Try again
@@ -207,6 +243,7 @@ export default function App() {
                 report={analysis.report}
                 myomas={myomas}
                 colors={colors}
+                intake={intake}
                 onSelect={selectMyoma}
               />
             ) : (

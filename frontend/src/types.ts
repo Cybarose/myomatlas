@@ -4,6 +4,24 @@ export type FigoGroup =
   | "Subserosal"
   | "Transmural"
   | "Other";
+
+export type MenopausalStatus =
+  | "premenopausal"
+  | "perimenopausal"
+  | "postmenopausal"
+  | "unknown";
+export type BleedingSeverity = "none" | "light" | "moderate" | "heavy";
+export type FertilityDesire = "desired" | "not_desired" | "unsure";
+
+// Every field is optional. Nothing here leaves the session.
+export interface ClinicalIntake {
+  age: number | null;
+  menopausalStatus: MenopausalStatus | null;
+  bleedingSeverity: BleedingSeverity | null;
+  fertilityDesire: FertilityDesire | null;
+  riskFactors: string[];
+  notes: string;
+}
 export type Relevance = "high" | "medium" | "low";
 export type Confidence = "higher" | "moderate" | "lower";
 
