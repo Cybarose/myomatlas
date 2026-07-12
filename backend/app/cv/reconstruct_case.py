@@ -24,11 +24,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Reconstruct a case to GLB (Phase 3).")
     parser.add_argument("--case", default="UMD_221129_003")
     parser.add_argument("--out-dir", type=Path, default=default_meshes_dir())
-    parser.add_argument("--smooth-sigma", type=float, default=0.7)
+    parser.add_argument(
+        "--smooth-mm",
+        type=float,
+        default=None,
+        help="Blur radius in mm. Defaults to a fraction of the case slice pitch.",
+    )
     args = parser.parse_args()
 
     case = load_case(args.case)
-    scene = build_scene(case, smooth_sigma=args.smooth_sigma)
+    scene = build_scene(case, smooth_mm=args.smooth_mm)
 
     print(f"case {args.case}: {len(scene.geometry)} meshes")
     for name, geom in scene.geometry.items():
