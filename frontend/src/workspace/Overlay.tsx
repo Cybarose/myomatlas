@@ -21,6 +21,10 @@ interface Slot {
 const GUTTER = 24;
 const EDGE = 12;
 
+// A bloom that grows to the full height of the workspace reads as a sidebar rather than
+// as a card, so cap it and let its content scroll inside.
+const BLOOM_MAX_HEIGHT = 520;
+
 // Cards sit in two gutters around the model. The side and the vertical order are
 // captured once from the opening view, so connectors stay short there and the cards
 // never jump around while the model is rotated.
@@ -140,7 +144,7 @@ export default function Overlay({
   const selectedDetail = selected ? myomas.find((m) => m.id === selected) : undefined;
   const selectedAnchor = anchors.find((a) => a.id === selected);
 
-  const bloomMaxHeight = Math.max(240, size.height - EDGE * 2);
+  const bloomMaxHeight = Math.max(240, Math.min(BLOOM_MAX_HEIGHT, size.height - EDGE * 2));
 
   // The bloom grows out of the small card, centered on the same connector anchor and
   // kept inside the workspace. The agent badge steps aside while it is open.

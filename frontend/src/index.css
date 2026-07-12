@@ -60,26 +60,50 @@ body {
   background-size: var(--grain-tile) var(--grain-tile);
 }
 
-/* Content cards: no fill of their own, just a dark translucent lift and a blur so light
-   text stays readable when the model sits behind them. The accent border does the
-   separating. Tune the whole card family from these rules. */
+/* Content cards read as solid dark surfaces, not frosted glass. Only a trace of
+   transparency is left, so the model behind them registers as depth rather than as a
+   blur. The accent border does the separating. Tune the whole card family from here. */
 .card-surface {
-  background-color: rgb(18 20 26 / 0.72);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background-color: rgb(21 23 29 / 0.94);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
 }
 
 /* Long-form reading panels. Paragraphs need a calm, stable ground, so these sit denser
-   and far less blurred than the cards. Same accent border, same family. */
+   still. Same accent border, same family. */
 .panel-surface {
-  background-color: rgb(18 20 26 / 0.95);
-  -webkit-backdrop-filter: blur(5px);
-  backdrop-filter: blur(5px);
+  background-color: rgb(21 23 29 / 0.97);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
 }
 
 .card-inset {
   background-color: rgb(255 255 255 / 0.05);
   border: 1px solid color-mix(in oklab, var(--color-accent) 22%, transparent);
+}
+
+/* Intake fields: solid dark, no glass, so they sit calmly inside the card instead of
+   reading as white cutouts. */
+.field {
+  background-color: var(--color-surface2);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  accent-color: var(--color-accent);
+  color-scheme: dark;
+}
+
+/* The select popup is drawn by the operating system, so the accent lands only where the
+   browser honors option styling. The gradient is what makes Blink paint the fill. */
+.field option {
+  background-color: var(--color-surface2);
+  color: var(--color-fg);
+}
+
+.field option:checked,
+.field option:hover {
+  background: var(--color-accent)
+    linear-gradient(0deg, var(--color-accent) 0%, var(--color-accent) 100%);
+  color: var(--color-bg);
 }
 
 /* A far fainter grain on cards, so surfaces feel organic without touching legibility.

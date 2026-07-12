@@ -20,7 +20,7 @@ interface Props {
 }
 
 const FIELD =
-  "w-full rounded-md border border-accent/25 bg-bg/60 px-2.5 py-2 text-[13px] text-fg outline-none transition-colors focus:border-accent";
+  "field w-full rounded-md border border-accent/25 px-2.5 py-2 text-[13px] text-fg outline-none transition-colors focus:border-accent";
 
 function Label({ children }: { children: React.ReactNode }) {
   return (

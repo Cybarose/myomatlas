@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -m 10 \"http://localhost:5174/src/components/IntakeForm.tsx\" -o /tmp/probe.txt -w \"  HTTP %{http_code}, %{size_download} bytes\\\\n\")"
+    ]
+  }
+}
