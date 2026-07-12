@@ -22,14 +22,17 @@ interface Slot {
 const GUTTER = 24;
 const EDGE = 12;
 
+// Half the height of a small card, used to test which cards the docked bloom lands on.
+const CARD_HALF_HEIGHT = 34;
+
 // The card is one scroll region, so the cap only decides how much of it is visible at
 // rest. It is set to reach roughly the start of the measurements, and the rest is
 // scrolled to. Nothing can be cut off, however long the reasoning runs.
 const BLOOM_MAX_HEIGHT = 480;
 
-// Cards sit in two gutters around the model. The side and the vertical order are
-// captured once from the opening view, so connectors stay short there and the cards
-// never jump around while the model is rotated.
+// Cards sit in both gutters around the model, so the connectors fan out to either side.
+// The side and the vertical order are captured once from the opening view, so connectors
+// stay short and the cards never jump around while the model is rotated.
 function splitColumns(items: MyomaDetail[]): [MyomaDetail[], MyomaDetail[]] {
   const half = Math.ceil(items.length / 2);
   return [items.slice(0, half), items.slice(half)];
@@ -74,6 +77,8 @@ export default function Overlay({
     if (Object.keys(slots).length > 0 || myomas.length === 0 || size.width === 0) return;
     if (!myomas.every((m) => projected[m.id])) return;
 
+    // Each card goes to the gutter its myoma already leans toward, so the connectors stay
+    // short and the cards spread around the model rather than stacking in one column.
     const next: Record<string, Slot> = {};
     for (const myoma of myomas) {
       const point = projected[myoma.id];
@@ -159,6 +164,21 @@ export default function Overlay({
     return Math.min(Math.max(raw, EDGE), max);
   })();
 
+  // The docked bloom is wider than a card, so it sits over its own column. Cards it lands
+  // on step aside with the selected one, rather than being left half clipped by its edge.
+  const covered = (() => {
+    const ids = new Set<string>();
+    if (!selectedAnchor) return ids;
+    const height = Math.min(bloomHeight || 360, bloomMaxHeight);
+    for (const anchor of anchors) {
+      if (anchor.side !== selectedAnchor.side) continue;
+      const top = anchor.y - CARD_HALF_HEIGHT;
+      const bottom = anchor.y + CARD_HALF_HEIGHT;
+      if (bottom > bloomTop && top < bloomTop + height) ids.add(anchor.id);
+    }
+    return ids;
+  })();
+
   const column = (items: MyomaDetail[], align: string) => (
     <div
       className={`pointer-events-none absolute top-0 bottom-0 flex flex-col justify-center gap-3 ${align}`}
@@ -168,7 +188,7 @@ export default function Overlay({
           <MyomaCard
             detail={myoma}
             color={colors[myoma.id]}
-            hidden={selected === myoma.id}
+            hidden={selected === myoma.id || covered.has(myoma.id)}
             onSelect={() => onSelect(myoma.id)}
             cardRef={setCardRef(myoma.id)}
           />

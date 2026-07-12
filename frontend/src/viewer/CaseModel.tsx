@@ -5,6 +5,7 @@ import * as THREE from "three";
 import type { ModelMeta, Projected } from "../types";
 import { myomaColor } from "./palette";
 import { useCaseParts } from "./parts";
+import { createWallMaterial } from "./wallMaterial";
 
 interface Props {
   url: string;
@@ -51,6 +52,9 @@ function ScaleBar({ y, length }: { y: number; length: number }) {
 export default function CaseModel({ url, selected, onSelect, onReady, onProject }: Props) {
   const { wall, cavity, myomas, center, size } = useCaseParts(url);
   const [hovered, setHovered] = useState<string | null>(null);
+  const wallMaterial = useMemo(() => createWallMaterial(), []);
+
+  useEffect(() => () => wallMaterial.dispose(), [wallMaterial]);
 
   const meshRefs = useRef<Record<string, THREE.Mesh>>({});
   const camera = useThree((state) => state.camera);
@@ -153,36 +157,12 @@ export default function CaseModel({ url, selected, onSelect, onReady, onProject 
         </mesh>
       ))}
 
-      {/* Frosted glass organ. Front faces only: the shell is carved around every myoma,
-          and its inner surfaces face away from the camera, so culling them keeps the
-          glass clean and the opaque myomas read straight through it.
-
-          Deliberately not a transmission material. Physical transmission samples a buffer
-          that excludes the scene background, so the shell transmits black, and a real
-          index of refraction smears the view through a jagged marching-cubes surface.
-          A matte, low-opacity surface with a crisp clearcoat gives the frost and the edge
-          highlights without either failure. */}
+      {/* Soft tissue shell. Front faces only: it is carved around every myoma, and its
+          inner surfaces face away from the camera, so culling them keeps the surface clean
+          and the opaque myomas read straight through it. The rose tone and its surface
+          variation come from the shared wall material. */}
       {wall.map((geometry, index) => (
-        <mesh key={`wall-${index}`} geometry={geometry}>
-          <meshPhysicalMaterial
-            color="#e9eaec"
-            transparent
-            opacity={0.4}
-            roughness={0.44}
-            metalness={0}
-            clearcoat={1}
-            clearcoatRoughness={0.16}
-            specularIntensity={1}
-            // A neutral milky core. On a dark stage a translucent shell only ever darkens
-            // what is behind it, so the wall has to carry its own brightness to read as a
-            // light shell rather than as stone. No tint, so it stays quiet.
-            emissive={new THREE.Color("#9aa0a6")}
-            emissiveIntensity={0.55}
-            envMapIntensity={2}
-            side={THREE.FrontSide}
-            depthWrite={false}
-          />
-        </mesh>
+        <mesh key={`wall-${index}`} geometry={geometry} material={wallMaterial} />
       ))}
 
       <ScaleBar y={floorY} length={50} />
