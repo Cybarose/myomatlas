@@ -5,8 +5,10 @@ interface Props {
   cases: string[];
   busy: boolean;
   hasContext: boolean;
+  canExport: boolean;
   onSelectCase: (caseId: string) => void;
   onOpenIntake: () => void;
+  onExport: () => void;
 }
 
 export default function Header({
@@ -14,8 +16,10 @@ export default function Header({
   cases,
   busy,
   hasContext,
+  canExport,
   onSelectCase,
   onOpenIntake,
+  onExport,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -84,6 +88,16 @@ export default function Header({
             </div>
           )}
         </div>
+
+        {/* Only offered once an analysis exists to export. */}
+        <button
+          type="button"
+          disabled={!canExport}
+          onClick={onExport}
+          className="rounded-lg border border-line px-3 py-1.5 text-[12px] font-medium text-fg2 transition-colors hover:border-fg3 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Export PDF
+        </button>
 
         <span className="hidden text-[11px] text-fg3 lg:block">
           Decision support, not a diagnosis.

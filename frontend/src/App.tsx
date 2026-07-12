@@ -8,6 +8,7 @@ import IntakeForm from "./components/IntakeForm";
 import CaseReportPanel from "./panels/CaseReport";
 import Drawer from "./panels/Drawer";
 import PatientExplanationPanel from "./panels/PatientExplanation";
+import { downloadCaseReportPdf } from "./report/pdf";
 import type { ClinicalIntake, ModelMeta, MyomaDetail, Projected } from "./types";
 import Scene from "./viewer/Scene";
 import { myomaColor } from "./viewer/palette";
@@ -146,6 +147,13 @@ export default function App() {
     return map;
   }, [meta]);
 
+  const exportPdf = useCallback(() => {
+    if (!analysis) return;
+    // Prefer the viewer's ordering, but still export if the mesh never loaded.
+    const findings = myomas.length > 0 ? myomas : analysis.myomas;
+    downloadCaseReportPdf(analysis.report, findings, intake);
+  }, [analysis, myomas, intake]);
+
   const ready = status === "ready" && analysis !== null;
   const drawerTitle = panel === "report" ? "Clinical report" : "Patient explanation";
   const drawerSubtitle =
@@ -160,8 +168,10 @@ export default function App() {
         cases={cases}
         busy={status === "loading"}
         hasContext={isIntakeProvided(intake)}
+        canExport={ready}
         onSelectCase={(id) => void loadCase(id, intake)}
         onOpenIntake={() => setIntakeOpen(true)}
+        onExport={exportPdf}
       />
 
       <main className="grain relative min-h-0 flex-1 overflow-hidden bg-bg">
