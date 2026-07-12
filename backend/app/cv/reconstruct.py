@@ -68,7 +68,11 @@ _MARGIN_MM = 4.0
 # pitch the terraces survive almost untouched, at 0.6 they are gone. Blurring this hard
 # would normally eat the small myomas, but the isolevel below is solved for the segmented
 # volume, so smoothing strength no longer trades against volume fidelity.
-_SMOOTH_SLICE_FRACTION = 0.6
+#
+# 0.6 removed the terraces but melted the organ into a featureless blob, and 0.4 lets the
+# ripple bands creep back onto the myoma lobes. 0.45 keeps the staircase gone while the
+# wall keeps its lobes, folds and a little honest surface character.
+_SMOOTH_SLICE_FRACTION = 0.45
 
 # Never blur a region by more than its own inscribed radius, so a small myoma stays a
 # myoma and the thin cavity stripe survives.
