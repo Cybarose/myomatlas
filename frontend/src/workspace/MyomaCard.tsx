@@ -16,7 +16,7 @@ export default function MyomaCard({ detail, color, hidden, onSelect, cardRef }: 
       type="button"
       onClick={onSelect}
       // Kept in the layout while its bloom is open, so the connector anchor stays put.
-      className={`grain-card card-surface relative w-[200px] rounded-lg border border-accent/80 px-3 py-2.5 text-left transition-opacity ${
+      className={`grain-card glass-surface relative w-[200px] rounded-lg border border-accent/80 px-3 py-2.5 text-left transition-opacity ${
         hidden ? "pointer-events-none opacity-0" : "opacity-100 hover:border-accent"
       }`}
     >

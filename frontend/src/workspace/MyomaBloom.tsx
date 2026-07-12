@@ -1,10 +1,13 @@
 import { GroupTag, RelevanceChip } from "../components/Tags";
 import type { MyomaDetail } from "../types";
+import MyomaMiniView from "../viewer/MyomaMiniView";
 
 interface Props {
   detail: MyomaDetail;
   color: string;
   side: "left" | "right";
+  maxHeight: number;
+  meshUrl: string;
   onClose: () => void;
 }
 
@@ -31,7 +34,14 @@ function Metric({ label, value, unit }: { label: string; value: string; unit?: s
   );
 }
 
-export default function MyomaBloom({ detail, color, side, onClose }: Props) {
+export default function MyomaBloom({
+  detail,
+  color,
+  side,
+  maxHeight,
+  meshUrl,
+  onClose,
+}: Props) {
   const m = detail.measurement;
   const contact =
     [m.contactsCavity && "Cavity", m.contactsSerosa && "Serosa"]
@@ -39,32 +49,39 @@ export default function MyomaBloom({ detail, color, side, onClose }: Props) {
       .join(", ") || "None";
 
   return (
+    // The cap has to be a real length. A percentage max-height would resolve against the
+    // auto-height wrapper and be dropped, which is what let the card run the full stage.
     <div
-      className="bloom-in grain-card card-surface relative flex max-h-full w-[320px] flex-col overflow-hidden rounded-xl border border-accent/80 shadow-xl shadow-black/40"
-      style={{ transformOrigin: side === "left" ? "left center" : "right center" }}
+      className="bloom-in grain-card card-surface relative flex w-[320px] flex-col overflow-hidden rounded-xl border border-accent/80 shadow-xl shadow-black/40"
+      style={{
+        maxHeight,
+        transformOrigin: side === "left" ? "left center" : "right center",
+      }}
     >
-      <div className="flex shrink-0 items-start justify-between gap-3 px-4 pt-4">
-        <div className="flex items-center gap-2.5">
-          <span
-            className="h-3 w-3 shrink-0 rounded-full"
-            style={{ backgroundColor: color }}
-          />
-          <h3 className="font-serif text-[19px] leading-none font-semibold text-fg">
-            {detail.label}
-          </h3>
+      {/* One continuous scroll region. Everything from the title to the management options
+          moves together, so no part of the card can end up unreachable. */}
+      <div className="scroll-slim min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="h-3 w-3 shrink-0 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            <h3 className="font-serif text-[19px] leading-none font-semibold text-fg">
+              {detail.label}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Collapse"
+            className="-mt-1 -mr-1 rounded px-1.5 py-0.5 text-[16px] leading-none text-fg3 transition-colors hover:bg-fg/10 hover:text-fg"
+          >
+            &times;
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Collapse"
-          className="-mt-1 -mr-1 rounded px-1.5 py-0.5 text-[16px] leading-none text-fg3 transition-colors hover:bg-fg/10 hover:text-fg"
-        >
-          &times;
-        </button>
-      </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <div className="mt-5 flex flex-wrap items-center gap-1.5">
           <GroupTag group={detail.figoGroup} />
           <RelevanceChip relevance={detail.relevance} />
           {detail.provisional && (
@@ -72,6 +89,15 @@ export default function MyomaBloom({ detail, color, side, onClose }: Props) {
               Provisional
             </span>
           )}
+        </div>
+
+        <div className="mt-3">
+          <MyomaMiniView
+            key={detail.id}
+            url={meshUrl}
+            myomaId={detail.id}
+            color={color}
+          />
         </div>
 
         <Section title="FIGO classification">
@@ -112,7 +138,6 @@ export default function MyomaBloom({ detail, color, side, onClose }: Props) {
             ))}
           </ul>
         </Section>
-
       </div>
     </div>
   );

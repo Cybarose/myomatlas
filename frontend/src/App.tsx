@@ -111,9 +111,23 @@ export default function App() {
     setProjected(next);
   }, []);
 
-  const handleSelect = useCallback((id: string | null) => setSelected(id), []);
-  const selectMyoma = useCallback((id: string) => setSelected(id), []);
+  // A detail card and a side panel would overlap, so opening either one closes the other.
+  const handleSelect = useCallback((id: string | null) => {
+    setSelected(id);
+    if (id !== null) setPanel(null);
+  }, []);
+
+  const selectMyoma = useCallback((id: string) => {
+    setSelected(id);
+    setPanel(null);
+  }, []);
+
   const clearSelection = useCallback(() => setSelected(null), []);
+
+  const togglePanel = useCallback((key: Exclude<Panel, null>) => {
+    setPanel((current) => (current === key ? null : key));
+    setSelected(null);
+  }, []);
 
   // Order by the mesh, and keep only myomas that exist in both the mesh and the report.
   const myomas = useMemo<MyomaDetail[]>(() => {
@@ -168,6 +182,7 @@ export default function App() {
             onSelect={selectMyoma}
             onClose={clearSelection}
             projected={projected}
+            meshUrl={meshUrl(caseId)}
           />
         )}
 
@@ -219,7 +234,10 @@ export default function App() {
               key={key}
               type="button"
               disabled={!ready}
-              onClick={() => setPanel(panel === key ? null : key)}
+              // Exempt from the drawer's click-outside, or opening one panel from the
+              // other would close it again on the same click.
+              data-panel-toggle=""
+              onClick={() => togglePanel(key)}
               className={`rounded-lg border px-3.5 py-2 text-[12px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 panel === key
                   ? "border-accent bg-accent text-bg"

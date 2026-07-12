@@ -65,7 +65,7 @@ export default function Header({
           </button>
 
           {open && (
-            <div className="card-surface absolute top-full right-0 z-40 mt-2 max-h-72 w-56 overflow-y-auto rounded-lg border border-accent/80">
+            <div className="scroll-slim card-surface absolute top-full right-0 z-40 mt-2 max-h-72 w-56 overflow-y-auto rounded-lg border border-accent/80">
               {cases.map((id) => (
                 <button
                   key={id}

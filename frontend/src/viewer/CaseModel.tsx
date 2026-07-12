@@ -1,15 +1,10 @@
-import { Html, useGLTF } from "@react-three/drei";
+import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { ModelMeta, Projected } from "../types";
-import { myomaColor, myomaOrder } from "./palette";
-
-interface MyomaPart {
-  id: string;
-  geometry: THREE.BufferGeometry;
-  centroid: THREE.Vector3;
-}
+import { myomaColor } from "./palette";
+import { useCaseParts } from "./parts";
 
 interface Props {
   url: string;
@@ -22,48 +17,6 @@ interface Props {
 // A dimmed myoma is muted toward the stage grey rather than made transparent: the
 // frosted wall only refracts opaque geometry, so a transparent myoma would vanish.
 const MUTED = new THREE.Color("#2f343c");
-
-// Pull the named nodes out of the GLB and bake world transforms into geometry so
-// wall, cavity and every myoma share one coordinate frame.
-function useCaseParts(url: string) {
-  const { scene } = useGLTF(url);
-
-  return useMemo(() => {
-    const wall: THREE.BufferGeometry[] = [];
-    const cavity: THREE.BufferGeometry[] = [];
-    const myomas: MyomaPart[] = [];
-
-    scene.updateMatrixWorld(true);
-    scene.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh || !mesh.geometry) return;
-
-      const geometry = mesh.geometry.clone();
-      geometry.applyMatrix4(mesh.matrixWorld);
-      geometry.computeVertexNormals();
-      geometry.computeBoundingBox();
-
-      const name = mesh.name.toLowerCase();
-      if (name.includes("myoma")) {
-        const centroid = new THREE.Vector3();
-        geometry.boundingBox?.getCenter(centroid);
-        myomas.push({ id: mesh.name, geometry, centroid });
-      } else if (name.includes("cavity")) cavity.push(geometry);
-      else if (name.includes("wall")) wall.push(geometry);
-    });
-
-    myomas.sort((a, b) => myomaOrder(a.id) - myomaOrder(b.id));
-
-    const box = new THREE.Box3();
-    for (const g of [...wall, ...cavity, ...myomas.map((m) => m.geometry)]) {
-      if (g.boundingBox) box.union(g.boundingBox);
-    }
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-
-    return { wall, cavity, myomas, center, size };
-  }, [scene]);
-}
 
 // A true-to-scale reference bar sitting under the model, in millimeters.
 function ScaleBar({ y, length }: { y: number; length: number }) {
@@ -79,7 +32,14 @@ function ScaleBar({ y, length }: { y: number; length: number }) {
           <meshBasicMaterial color="#6d7481" toneMapped={false} />
         </mesh>
       ))}
-      <Html center position={[0, -6, 0]} style={{ pointerEvents: "none" }}>
+      {/* Html defaults to a z-index in the millions, which would float the label over the
+          cards and the intake form. Keep it below the overlay layer. */}
+      <Html
+        center
+        position={[0, -6, 0]}
+        zIndexRange={[5, 0]}
+        style={{ pointerEvents: "none" }}
+      >
         <span className="figure whitespace-nowrap text-[10px] tracking-[0.1em] text-fg3">
           {length} mm
         </span>

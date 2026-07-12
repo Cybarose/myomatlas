@@ -11,6 +11,7 @@ interface Props {
   onSelect: (id: string) => void;
   onClose: () => void;
   projected: Record<string, Projected>;
+  meshUrl: string;
 }
 
 interface Slot {
@@ -21,9 +22,10 @@ interface Slot {
 const GUTTER = 24;
 const EDGE = 12;
 
-// A bloom that grows to the full height of the workspace reads as a sidebar rather than
-// as a card, so cap it and let its content scroll inside.
-const BLOOM_MAX_HEIGHT = 520;
+// The card is one scroll region, so the cap only decides how much of it is visible at
+// rest. It is set to reach roughly the start of the measurements, and the rest is
+// scrolled to. Nothing can be cut off, however long the reasoning runs.
+const BLOOM_MAX_HEIGHT = 480;
 
 // Cards sit in two gutters around the model. The side and the vertical order are
 // captured once from the opening view, so connectors stay short there and the cards
@@ -53,6 +55,7 @@ export default function Overlay({
   onSelect,
   onClose,
   projected,
+  meshUrl,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -202,6 +205,8 @@ export default function Overlay({
             detail={selectedDetail}
             color={colors[selectedDetail.id]}
             side={selectedAnchor.side}
+            maxHeight={bloomMaxHeight}
+            meshUrl={meshUrl}
             onClose={onClose}
           />
         </div>

@@ -61,20 +61,38 @@ body {
 }
 
 /* Content cards read as solid dark surfaces, not frosted glass. Only a trace of
-   transparency is left, so the model behind them registers as depth rather than as a
-   blur. The accent border does the separating. Tune the whole card family from here. */
+   transparency is left, so the model behind them registers as depth rather than showing
+   through. No blur: the accent border does the separating, not a frosted pane. Tune the
+   whole card family from these two numbers. */
 .card-surface {
-  background-color: rgb(21 23 29 / 0.94);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
+  background-color: rgb(21 23 29 / 0.97);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* Long-form reading panels. Paragraphs need a calm, stable ground, so these sit denser
-   still. Same accent border, same family. */
+   still, effectively opaque. Same accent border, same family. */
 .panel-surface {
-  background-color: rgb(21 23 29 / 0.97);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
+  background-color: rgb(21 23 29 / 0.99);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Modal surface. Fully opaque, so the model never reads through a form the user is
+   filling in. No alpha at all, not merely a high one. */
+.solid-surface {
+  background-color: #15171d;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* The small myoma nodes on the stage are the one place glass belongs: they float over
+   the model rather than covering it, and the frost keeps them light. Everything that
+   carries reading matter stays solid. */
+.glass-surface {
+  background-color: rgb(27 30 37 / 0.52);
+  -webkit-backdrop-filter: blur(10px) saturate(115%);
+  backdrop-filter: blur(10px) saturate(115%);
 }
 
 .card-inset {
@@ -88,6 +106,39 @@ body {
   background-color: var(--color-surface2);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+  accent-color: var(--color-accent);
+  color-scheme: dark;
+}
+
+/* Scroll regions inside cards and panels. The default bar is a bright slab on a dark
+   surface, so it is thinned to a low-contrast accent thumb on an empty track. Firefox
+   takes the standard properties, Blink and WebKit the pseudo elements. */
+.scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-accent) 38%, transparent) transparent;
+}
+
+.scroll-slim::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scroll-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-slim::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background-color: color-mix(in oklab, var(--color-accent) 38%, transparent);
+}
+
+.scroll-slim::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--color-accent) 62%, transparent);
+}
+
+/* Checkboxes are painted by the operating system, so without a dark color-scheme they
+   render as white boxes inside the dark card. The accent carries the theme when checked. */
+.field-check {
   accent-color: var(--color-accent);
   color-scheme: dark;
 }

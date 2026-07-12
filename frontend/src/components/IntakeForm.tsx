@@ -55,7 +55,7 @@ export default function IntakeForm({ intake, onSubmit, onClose }: Props) {
           event.preventDefault();
           onSubmit(draft);
         }}
-        className="card-surface relative flex max-h-full w-[420px] flex-col overflow-hidden rounded-xl border border-accent/80 shadow-xl shadow-black/40"
+        className="solid-surface relative flex max-h-full w-[420px] flex-col overflow-hidden rounded-xl border border-accent/80 shadow-xl shadow-black/40"
       >
         <div className="shrink-0 px-5 pt-5">
           <h2 className="font-serif text-[19px] leading-none font-semibold text-fg">
@@ -67,7 +67,7 @@ export default function IntakeForm({ intake, onSubmit, onClose }: Props) {
           </p>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
+        <div className="scroll-slim min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
           <div>
             <Label>Age</Label>
             <input
@@ -170,7 +170,7 @@ export default function IntakeForm({ intake, onSubmit, onClose }: Props) {
                     type="checkbox"
                     checked={draft.riskFactors.includes(factor)}
                     onChange={() => toggleRisk(factor)}
-                    className="h-3.5 w-3.5 accent-accent"
+                    className="field-check h-3.5 w-3.5"
                   />
                   {factor}
                 </label>
