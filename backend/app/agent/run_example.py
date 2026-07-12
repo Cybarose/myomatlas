@@ -20,7 +20,7 @@ from .agent import analyze_case, measurements_for_case
 def render_text(case_id: str, measurements: dict, result: dict) -> str:
     report = result["clinician_report"]
     lines: list[str] = []
-    lines.append(f"MyoMap analysis: {case_id}")
+    lines.append(f"Myomatlas analysis: {case_id}")
     lines.append(f"modality: {measurements.get('modality')}")
     lines.append(f"model: {result['model']}  rules_version: {result['rules_version']}")
     lines.append("")

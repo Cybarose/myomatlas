@@ -1,4 +1,4 @@
-# MyoMap
+# Myomatlas
 
 An open, image-based decision-support and patient-education tool for abnormal
 uterine bleeding (AUB). Computer vision segments myomas (fibroids) in pelvic MRI,

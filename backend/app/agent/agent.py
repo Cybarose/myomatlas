@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 from ..rules import load_and_validate
 from .prompt import OUTPUT_TOOL, build_system_blocks, build_user_message
 
-logger = logging.getLogger("myomap.agent")
+logger = logging.getLogger("myomatlas.agent")
 
 # Load a repo-root .env so ANTHROPIC_API_KEY is available for local runs.
 _ENV_PATH = Path(__file__).resolve().parents[3] / ".env"

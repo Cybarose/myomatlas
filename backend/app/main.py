@@ -1,4 +1,4 @@
-"""FastAPI entry point for MyoMap.
+"""FastAPI entry point for Myomatlas.
 
 Routes: /health, and POST /analyze which runs the reasoning agent on a case id
 or supplied measurements plus a clinical intake, returning the structured report.
@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from .agent.agent import analyze_case, measurements_for_case
 from .agent.schemas import AnalyzeRequest
 
-app = FastAPI(title="MyoMap API", version="0.1.0")
+app = FastAPI(title="Myomatlas API", version="0.1.0")
 
 # The frontend runs on a different dev port, so keep CORS open.
 app.add_middleware(
