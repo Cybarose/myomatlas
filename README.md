@@ -16,7 +16,7 @@ in partnership with Gladstone Institutes).
 
 ## Demo
 
-Watch the demo video: https://youtu.be/LOoYQ1xTpTA
+Watch the demo video: https://youtu.be/LOoYQ1xTpTA?si=1nQa9fMtH0KfOnne
 
 <img width="1271" height="794" alt="Bildschirmfoto 2026-07-13 um 15 53 56" src="https://github.com/user-attachments/assets/031ee87a-bf6c-4971-8264-75167f89cd93" />
 
