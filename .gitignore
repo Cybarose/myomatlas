@@ -1,5 +1,6 @@
 # Secrets
 .env
+.claude/
 
 # Daten und Modellgewichte (UMD, trainierte Modelle)
 data/
