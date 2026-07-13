@@ -1,244 +1,146 @@
 # Myomatlas
 
-An open, image-based decision-support and patient-education tool for abnormal
-uterine bleeding (AUB). Computer vision segments myomas (fibroids) in pelvic MRI,
-a Claude agent classifies them by FIGO / PALM-COEIN from a structured rules file,
-produces a structured clinical report plus a patient-friendly explanation, and a
-3D view shows the location. The tool self-verifies against open ground-truth data.
+Open, image-based decision support for abnormal uterine bleeding.
 
-Concept, background, and build plan: see [CONCEPT_AND_PLAN.md](CONCEPT_AND_PLAN.md).
+Myomatlas turns a pelvic MRI into a structured, guideline-based reading of uterine
+fibroids. Computer vision segments each fibroid, a Claude agent classifies it by the
+FIGO and PALM-COEIN systems from an encoded guideline, and the tool produces a
+structured clinical report, a plain-language patient explanation, and an interactive
+3D view. The analysis adapts to patient context such as age, menopausal status and
+fertility desire.
 
-This is decision support with a human in the loop, not an approved medical device.
+This is decision support, not a diagnosis. A clinician makes the final decision.
 
-## Repo structure
+Built for the Built with Claude: Life Sciences hackathon (Anthropic and Cerebral Valley,
+in partnership with Gladstone Institutes).
 
-```
-backend/
-  app/
-    main.py            FastAPI entry point, endpoints
-    cv/                loader, measurements, segmentation, mesh generation
-    agent/             Claude agent logic and tools
-    rules/             figo_palm_coein.json (the rules file)
-    verification/      held-out eval: Dice + FIGO agreement
-  requirements.txt
-frontend/
-  src/
-    components/
-    viewer/            three.js 3D view
-    report/            report and patient-explanation panels
-data/                  derived artifacts (gitignored); the dataset lives outside the repo
-```
+## Demo
 
-## Setup
+Watch the demo video: https://youtu.be/LOoYQ1xTpTA
 
-This project is bring-your-own-key. Whoever clones it sets their own
-`ANTHROPIC_API_KEY` and pays for their own API usage.
+<img width="1271" height="794" alt="Bildschirmfoto 2026-07-13 um 15 53 56" src="https://github.com/user-attachments/assets/031ee87a-bf6c-4971-8264-75167f89cd93" />
 
-### Backend
 
-```
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp ../.env.example ../.env   # then fill .env with your real key
-uvicorn app.main:app --reload
-```
+## The problem
 
-Health check: http://localhost:8000/health
+Heavy or abnormal uterine bleeding affects a large share of women, is a leading cause
+of iron-deficiency anemia, and is often normalized or under-investigated. When fibroids
+are the cause, their location (the FIGO type) drives the right treatment, but this is
+reported inconsistently and rarely explained to the patient in an understandable way.
+The location also determines fertility impact and whether a uterus-preserving option
+is possible. Myomatlas makes this location-to-options-to-fertility logic explicit and
+understandable.
 
-### Frontend
+## What it does
 
-```
-cd frontend
-npm install
-npm run dev
-```
+- Computer vision (a 2D U-Net trained on the open UMD dataset) segments the uterine
+  wall, cavity and each fibroid from the MRI, and measures size, count and location
+  relative to the cavity and serosa.
+- A Claude agent reasons strictly from an encoded FIGO / PALM-COEIN rules file to
+  assign a FIGO type per fibroid with a shown justification, place the case in
+  PALM-COEIN, flag when malignancy exclusion is warranted, and derive management
+  options including uterus- and fertility-preserving ones. It flags provisional cases
+  honestly where a fine threshold or pedunculation cannot be resolved from the masks.
+- A patient intake form (age, menopausal status, bleeding severity, fertility desire,
+  risk factors) makes the analysis context-aware: the malignancy assessment and the
+  ordering of management options change with the patient.
+- An interactive 3D workspace shows the uterus with color-coded fibroids, connector
+  lines to per-fibroid cards, a per-fibroid mini 3D view, a structured clinical report,
+  a plain-language patient explanation, and a PDF export of the full report.
+- Self-verification: the segmentation is evaluated against the open ground-truth masks,
+  and the FIGO reasoning is checked against the dataset labels, so the tool reports
+  measured accuracy rather than claims.
 
-Dev server: http://localhost:5173
+See the difference the patient context makes: the same scan produces two different
+reports depending on the patient. Example PDF exports are in the reports folder
 
-## Dataset
+## Data
 
-UMD (Uterine Myoma MRI Dataset), Scientific Data 2024,
-DOI 10.1038/s41597-024-03170-x. 300 cases of sagittal T2WI pelvic MRI with
-pixel-level masks for four regions. Obtain it via the paper's "Data Availability"
-section and respect its license and access terms.
+- UMD dataset (Uterine Myoma MRI Dataset), Pan et al., Scientific Data 11, 410 (2024),
+  DOI 10.1038/s41597-024-03170-x. 300 T2WI sagittal pelvic MRI cases with pixel-level
+  annotations for uterine wall, cavity, myoma and nabothian cyst, covering all nine
+  FIGO types. Openly available under CC-BY-4.0 on Figshare
+  (https://doi.org/10.6084/m9.figshare.23541312.v3).
+- The dataset is myoma-focused: cases with adenomyosis, malignancy and pregnancy were
+  excluded by the authors. The CV therefore covers the leiomyoma (L) branch of
+  PALM-COEIN from imaging, and the agent reasons about the remaining categories from the
+  clinical intake.
 
-The dataset lives outside the repo and is never copied into it. Point the code at
-it with the `UMD_DATA_DIR` environment variable (a local default is used when the
-variable is unset). Each case is a folder such as `UMD_221129_001` containing
-`<case>_t2.nii.gz` (T2WI volume) and `<case>_seg.nii.gz` (mask). The per-slice
-`.dcm` files are ignored. Mask labels: `1` uterine wall, `2` uterine cavity,
-`3` myoma, `4` nabothian cyst. Voxel spacing is read from the NIfTI header.
+## Guideline sources
 
-## Phase 1: loader and measurements
+The rules file encodes:
+- FIGO leiomyoma subclassification, Munro et al. 2011 (and the 2018 revision).
+- ACOG Practice Bulletin No. 228, Management of Symptomatic Uterine Leiomyomas (2021).
+- NICE NG88 where relevant.
+The FIGO type definitions and citations were checked against these primary sources.
 
-The `backend/app/cv` package loads a case, computes per-myoma geometry (size,
-contact with the uterine cavity and the serosa, and an intramural percentage),
-and writes a structured JSON plus a PNG overlay of one slice for inspection.
+## Architecture
 
-```
-cd backend
-source .venv/bin/activate
-python -m app.cv.run_case                    # first case in the dataset
-python -m app.cv.run_case --case UMD_221129_003
-UMD_DATA_DIR=/path/to/UMD python -m app.cv.run_case --case UMD_221129_003
-```
+- Backend: Python, FastAPI. CV with PyTorch (segmentation, measurements, marching-cubes
+  mesh reconstruction). The Claude agent uses the Anthropic API and reasons from
+  backend/app/rules/figo_palm_coein.json.
+- Frontend: React, Vite, TypeScript, Tailwind, three.js for the 3D workspace.
 
-Outputs are written under `data/phase1/` (gitignored).
+## Running it
 
-## Phase 2: segmentation model
+Requirements: the UMD dataset on disk, an Anthropic API key, Python and Node.
 
-A 2D U-Net predicts the four regions from the T2 volume. Training operates on
-native sagittal slices (the acquisition plane, full in-plane resolution), so no
-resampling crosses the thick slice direction. The train/val split is deterministic
-(seed 42, 80/20) and persisted to `data/splits.json`. Weights and the split live
-under `data/` (gitignored). The inference output matches the Phase 1 mask
-structure, so `measure_case` runs on predictions unchanged.
+1. Get the data. Download UMD.zip from the Figshare link above and unzip it. Note the
+   path to the folder that contains the case folders (for example
+   /path/to/umd-data/UMD).
 
-Each epoch logs mean train loss and per-class validation Dice (wall, cavity,
-myoma, nabothian) computed by full-volume inference on the val split, uses a
-cosine learning-rate schedule, mixes a share of background slices so the model
-does not overpredict, and keeps the best checkpoint by mean foreground val Dice
-(`<name>_best.pt`) alongside the last one.
+2. Set the API key. Copy the example env file and add your key. The key is only read
+   locally and is never committed.
+   ```
+   cp .env.example .env
+   # then set ANTHROPIC_API_KEY=... in .env
+   ```
 
-```
-cd backend
-source .venv/bin/activate
+3. Backend (terminal 1):
+   ```
+   cd backend
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   export UMD_DATA_DIR=/path/to/umd-data/UMD
+   python -m app.serve
+   ```
 
-# Smoke test: a few iterations on a handful of cases (CPU), end to end.
-python -m app.cv.train --limit-cases 4 --max-iters 3 --size 128 \
-    --base-channels 8 --batch-size 2 --device cpu --out data/models/unet_smoke.pt
+4. Frontend (terminal 2):
+   ```
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   Open the URL Vite prints. Click Load case to pick one of the 300 cases, and Patient
+   details to provide optional clinical context.
 
-# Real run (uses CUDA or Apple MPS automatically when available).
-python -m app.cv.train --epochs 50 --size 256 --base-channels 32
-```
+Pretrained weights are not committed (they live in the gitignored data folder). They are
+provided as a GitHub Release: download unet_best.pt from the Releases page of this repo
+and place it in data/models/. Alternatively, train the model yourself (see below).
 
-Inference returns a `Case` carrying the predicted mask:
+## Training the segmentation model
 
-```python
-from app.cv.inference import predict_case
-from app.cv.measurements import measure_case
-
-case = predict_case("UMD_221129_002", "data/models/unet.pt")
-report = measure_case(case)
-```
-
-### Fast full-set data path
-
-A real run should not decode NIfTI volumes every step. Pre-extract resized slices
-once, then train reading small per-slice files with worker processes:
-
-```
-python -m app.cv.preprocess --size 256            # writes data/slices/256/
-python -m app.cv.train --use-preextracted --size 256 --workers 4 ...
-```
-
-The simpler alternative is to keep all volumes in RAM with a large cache
-(`--cache-size 240`, roughly 8 GB); pre-extraction is preferred because it also
-removes the per-slice resize cost and works cleanly with DataLoader workers.
-
-### Class weighting
-
-Cross-entropy is class-weighted so the rare small classes (cavity, nabothian)
-can learn. `--class-weights auto` (default) derives weights from training-set
-class frequency (median-frequency balancing, capped by `--class-weight-cap`).
-Use `--class-weights none` for uniform, or pass five comma-separated values.
-
-## Phase 3: 3D reconstruction
-
-Marching cubes turns a case mask into a GLB scene, applying the anisotropic voxel
-spacing so proportions are anatomically true. Wall (semi-transparent), cavity,
-and each individual myoma are separate named meshes (`wall`, `cavity`,
-`myoma_1`..`myoma_n`, largest first, matching the measurement ids) so the frontend
-can color, label, and toggle them. The scene is centered at the origin. It runs on
-any label volume, so ground-truth masks and model predictions both work.
-
+The full training pipeline is included. On a CUDA GPU:
 ```
 cd backend
 source .venv/bin/activate
-python -m app.cv.reconstruct_case --case UMD_221129_003
-```
-
-The GLB is written under `data/meshes/` (gitignored).
-
-## Phase 4: FIGO/PALM-COEIN rules
-
-[backend/app/rules/figo_palm_coein.json](backend/app/rules/figo_palm_coein.json) is
-the reasoning core: FIGO leiomyoma types 0-8 plus the hybrid case, each with its
-geometric definition, distinguishing threshold, mapping to the CV measurements,
-symptom and fertility relevance, and management options, plus the PALM-COEIN
-framework and a malignancy-exclusion rule. Every entry carries a citation. Fine
-50 percent threshold decisions and the surface-adjacency `intramural_pct` proxy
-are marked lower confidence so the agent can flag uncertainty rather than feign
-precision. The file is data only; no myoma type is assigned in Python.
-
-```
-cd backend
-python -m app.rules.validate   # schema-validate the file (exits non-zero if malformed)
-python tests/test_rules.py     # loud test: valid file passes, malformations raise
-```
-
-## Phase 5: reasoning agent
-
-The agent ([backend/app/agent/](backend/app/agent/)) takes a case's CV measurements
-plus an optional clinical intake (age, menopausal status, bleeding severity,
-fertility desire, risk factors) and reasons strictly from
-[figo_palm_coein.json](backend/app/rules/figo_palm_coein.json). The model assigns a
-FIGO type per myoma with a justification that cites the measurements, respects the
-confidence and uncertainty policy (provisional and lower confidence on fine 50
-percent thresholds, pedunculation, or location), places the case in PALM-COEIN, and
-applies the malignancy-exclusion rule. It returns a clinician report and a
-plain-language patient explanation as structured JSON. FIGO assignment is not
-computed in Python; the model reasons from the rules file.
-
-The API key comes from `ANTHROPIC_API_KEY` (environment or repo `.env`), never
-hardcoded. Missing key or a failed call returns a clear message instead of crashing.
-
-```
-cd backend
-export ANTHROPIC_API_KEY=...            # or put it in ../.env
-python -m app.agent.run_example --case UMD_221129_003
-```
-
-Or over HTTP:
-
-```
-uvicorn app.main:app --reload
-curl -s localhost:8000/analyze -H 'content-type: application/json' \
-  -d '{"case_id": "UMD_221129_003", "intake": {"age": 44, "menopausal_status": "premenopausal", "bleeding_severity": "heavy", "fertility_desire": "desired"}}'
-```
-
-## Training on a CUDA GPU
-
-Full training on a machine with an 8 GB NVIDIA GPU:
-
-```
-# 1. Clone and enter the repo
-git clone <your-fork-url> myomap
-cd myomap/backend
-
-# 2. Install (use a CUDA-enabled torch build for your CUDA version;
-#    see https://pytorch.org/get-started/locally/)
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Point at the UMD dataset (downloaded separately, never committed)
-export UMD_DATA_DIR=/path/to/UMD
-
-# 4. One-time slice pre-extraction (writes data/slices/256/)
+export UMD_DATA_DIR=/path/to/umd-data/UMD
 python -m app.cv.preprocess --size 256
-
-# 5. Full training run
-python -m app.cv.train \
-    --use-preextracted --size 256 --base-channels 32 \
-    --batch-size 16 --workers 4 \
-    --epochs 50 --lr-schedule cosine \
-    --class-weights auto --augment \
-    --device cuda --out data/models/unet.pt
+python -m app.cv.train --use-preextracted --size 256 --base-channels 32 --batch-size 16 --workers 4 --epochs 50 --lr-schedule cosine --class-weights auto --class-weight-cap 4 --augment --device cuda
 ```
+The best checkpoint is saved to data/models/unet_best.pt.
 
-Best checkpoint by mean foreground val Dice is saved automatically as
-`data/models/unet_best.pt`. If the GPU runs out of memory, lower `--batch-size`
-to 8. Per-epoch train loss and per-class val Dice are logged as training runs.
+## Limitations
+
+- The CV is trained on a myoma-only dataset, so imaging covers fibroids; other
+  PALM-COEIN causes are reasoned from the clinical intake, not seen in the image.
+- The intramural percentage is a surface-adjacency proxy, so FIGO type calls that hinge
+  on a fine 50 percent threshold or on pedunculation are marked provisional.
+- Retrospective research data, decision support only. Not a validated medical device.
+
+## License
+
+Code is released under the MIT License (see LICENSE). The UMD dataset is CC-BY-4.0 and
+must be cited as above. The pretrained weights were trained on the UMD dataset and are
+shared under the same attribution requirement.
