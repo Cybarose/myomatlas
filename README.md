@@ -105,6 +105,14 @@ Requirements: the UMD dataset on disk, an Anthropic API key, Python and Node.
    export UMD_DATA_DIR=/path/to/umd-data/UMD
    python -m app.serve
    ```
+   By default the agent uses Claude Sonnet (`claude-sonnet-5`). To choose a different
+   model, set the `AGENT_MODEL` environment variable before starting the backend, for
+   example to use Opus:
+​  ```
+   AGENT_MODEL=claude-opus-4-8 python -m app.serve
+​  ```
+
+   The demo video was recorded using Opus for the strongest reasoning.
 
 4. Frontend (terminal 2):
    ```
